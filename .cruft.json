@@ -1,0 +1,30 @@
+{
+  "template": "https://github.com/scverse/cookiecutter-scverse",
+  "commit": "5d44c58df427f884585ae9772cae81f1b6638f80",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "project_name": "cell-annotator",
+      "package_name": "cell_annotator",
+      "project_description": "A tool to annotate cell types",
+      "author_full_name": "Marius Lange",
+      "author_email": "mlange@ethz.ch",
+      "github_user": "quadbio",
+      "github_repo": "cell-annotator",
+      "license": "MIT License",
+      "ide_integration": true,
+      "_copy_without_render": [
+        ".github/workflows/build.yaml",
+        ".github/workflows/test.yaml",
+        "docs/_templates/autosummary/**.rst"
+      ],
+      "_render_devdocs": false,
+      "_jinja2_env_vars": {
+        "lstrip_blocks": true,
+        "trim_blocks": true
+      },
+      "_template": "https://github.com/scverse/cookiecutter-scverse"
+    }
+  },
+  "directory": null
+}
