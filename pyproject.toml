@@ -23,6 +23,7 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
+  "openai",
   "scanpy",
   # for debug logging (referenced from the issue template)
   "session-info",

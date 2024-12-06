@@ -6,6 +6,7 @@ from pandas import DataFrame, Series
 from tqdm.auto import tqdm
 
 from cell_annotator._constants import Prompts
+from cell_annotator._logging import logger
 
 
 def _query_openai(
@@ -42,7 +43,7 @@ def _query_openai(
     return res
 
 
-def get_expected_cell_types(species: str, tissue: str, n_markers: int = 5, verbose: bool = True, **kwargs):
+def get_expected_cell_types(species: str, tissue: str, n_markers: int = 5, **kwargs):
     """Query expected cell types per species and tissue.
 
     Parameters
@@ -53,7 +54,6 @@ def get_expected_cell_types(species: str, tissue: str, n_markers: int = 5, verbo
         Tissue name.
     n_markers : int, optional
         Number of markers to query per cell type, by default 5.
-    verbose : bool, optional
 
     Returns
     -------
@@ -66,9 +66,7 @@ def get_expected_cell_types(species: str, tissue: str, n_markers: int = 5, verbo
     prompt = Prompts.CELL_TYPE_PROMPT.format(species=species, tissue=tissue)
     agent_desc = f"You're an expert in {species} cell biology."
 
-    if verbose:
-        print("Querying cell types...")
-
+    logger.info("Querying cell types...")
     res_types = _query_openai(agent_desc, agent_desc + " " + prompt, **kwargs)
     expected_types = res_types.choices[0].message.content
 
@@ -77,14 +75,9 @@ def get_expected_cell_types(species: str, tissue: str, n_markers: int = 5, verbo
         {"role": "user", "content": Prompts.CELL_TYPE_MARKER_PROMPT.format(n_markers=n_markers)},
     ]
 
-    if verbose:
-        print("Querying cell type markers...")
-
+    logger.info("Querying cell type markers...")
     res_markers = _query_openai(agent_desc, agent_desc + " " + prompt, prompts2, **kwargs)
     expected_markers = res_markers.choices[0].message.content
-
-    if verbose:
-        print("Done!")
 
     return expected_types, expected_markers
 
