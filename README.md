@@ -1,6 +1,6 @@
 # cell-annotator
 
-A tool to annotate cell types using GPT.
+A tool to annotate cell types using GPT. This is a reimplementation of [https://github.com/VPetukhov/GPTCellAnnotator](https://github.com/VPetukhov/GPTCellAnnotator).
 
 ## Installation
 
