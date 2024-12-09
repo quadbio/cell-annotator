@@ -5,6 +5,8 @@ from scipy.sparse import issparse
 from sklearn.metrics import roc_auc_score
 from tqdm.auto import tqdm
 
+from cell_annotator._logging import logger
+
 
 def _get_specificity(genes: list[str], clust_mask: np.ndarray, adata: sc.AnnData, use_raw: bool = True):
     if use_raw:
@@ -55,15 +57,18 @@ def get_markers_per_cluster(
         Series of DataFrames containing marker genes per cluster
 
     """
+    logger.info("Computing marker genes per cluster")
     sc.tl.rank_genes_groups(adata, groupby=cluster_key, method="wilcoxon", use_raw=use_raw)
 
     marker_dfs = {}
+    logger.info("Iterating over clusters to compute specificity and AUC values.")
     for cli in tqdm(adata.obs[cluster_key].unique()):
         # get a list of differentially expressed genes
         genes = adata.uns["rank_genes_groups"]["names"][cli][:max_markers]
 
         # compute their specificity
         clust_mask = adata.obs[cluster_key] == cli
+        logger.debug("Computing specificity for cluster %s", cli)
         specificity = _get_specificity(genes, clust_mask, adata)
 
         # filter genes by specificity
@@ -72,6 +77,7 @@ def get_markers_per_cluster(
         specificity = specificity[mask]
 
         # compute AUCs
+        logger.debug("Computing AUC for cluster %s", cli)
         auc = _get_auc(genes, clust_mask, adata)
         marker_dfs[cli] = DataFrame({"gene": genes, "specificity": specificity, "auc": auc})
 
