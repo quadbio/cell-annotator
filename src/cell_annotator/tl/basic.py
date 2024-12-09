@@ -1,6 +1,3 @@
-import time
-
-import openai
 from openai import OpenAI
 from pandas import DataFrame, Series
 from tqdm.auto import tqdm
@@ -13,8 +10,7 @@ def _query_openai(
     agent_description: str,
     instruction: str,
     other_messages: list | None = None,
-    n_repeats: int = 4,
-    model: str = "gpt-3.5-turbo",
+    model: str = "gpt-4o-mini",
     **kwargs,
 ):
     client = OpenAI()
@@ -22,23 +18,12 @@ def _query_openai(
     if other_messages is None:
         other_messages = []
 
-    for _ in range(n_repeats):
-        res = None
-        try:
-            res = client.chat.completions.create(
-                model=model,
-                messages=[{"role": "system", "content": agent_description}, {"role": "user", "content": instruction}]
-                + other_messages,
-                **kwargs,
-            )
-            break
-        except openai.OpenAIError as e:
-            print(e)
-            time.sleep(1)
-            continue
-
-    if res is None:
-        raise ValueError("Failed to get response from OpenAI")
+    res = client.chat.completions.create(
+        model=model,
+        messages=[{"role": "system", "content": agent_description}, {"role": "user", "content": instruction}]
+        + other_messages,
+        **kwargs,
+    )
 
     return res
 
@@ -63,23 +48,28 @@ def get_expected_cell_types(species: str, tissue: str, n_markers: int = 5, **kwa
         Expected cell type markers.
 
     """
-    prompt = Prompts.CELL_TYPE_PROMPT.format(species=species, tissue=tissue)
+    cell_type_prompt = Prompts.CELL_TYPE_PROMPT.format(species=species, tissue=tissue)
     agent_desc = f"You're an expert in {species} cell biology."
 
-    logger.info("Querying cell types...")
-    res_types = _query_openai(agent_desc, agent_desc + " " + prompt, **kwargs)
-    expected_types = res_types.choices[0].message.content
+    logger.info("Querying cell types.")
+    res_types = _query_openai(agent_description=agent_desc, instruction=f"{agent_desc} {cell_type_prompt}", **kwargs)
+    expected_cell_types = res_types.choices[0].message.content
 
-    prompts2 = [
-        {"role": "assistant", "content": expected_types},
+    marker_gene_prompt = [
+        {"role": "assistant", "content": expected_cell_types},
         {"role": "user", "content": Prompts.CELL_TYPE_MARKER_PROMPT.format(n_markers=n_markers)},
     ]
 
-    logger.info("Querying cell type markers...")
-    res_markers = _query_openai(agent_desc, agent_desc + " " + prompt, prompts2, **kwargs)
-    expected_markers = res_markers.choices[0].message.content
+    logger.info("Querying cell type markers.")
+    res_markers = _query_openai(
+        agent_description=agent_desc,
+        instruction=agent_desc + " " + cell_type_prompt,
+        other_messages=marker_gene_prompt,
+        **kwargs,
+    )
+    expected_marker_genes = res_markers.choices[0].message.content
 
-    return expected_types, expected_markers
+    return expected_cell_types, expected_marker_genes
 
 
 def annotate_clusters(
