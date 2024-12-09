@@ -24,8 +24,8 @@ classifiers = [
 ]
 dependencies = [
   "openai",
-  "scanpy",
   "python-dotenv",
+  "scanpy",
   # for debug logging (referenced from the issue template)
   "session-info",
 ]
