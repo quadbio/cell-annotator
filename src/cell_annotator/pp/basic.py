@@ -1,3 +1,5 @@
+from collections.abc import Sequence
+
 import numpy as np
 import scanpy as sc
 from pandas import DataFrame, Series
@@ -8,7 +10,9 @@ from tqdm.auto import tqdm
 from cell_annotator._logging import logger
 
 
-def _get_specificity(genes: list[str], clust_mask: np.ndarray, adata: sc.AnnData, use_raw: bool = True):
+def _get_specificity(
+    genes: np.ndarray | Sequence[str], clust_mask: np.ndarray, adata: sc.AnnData, use_raw: bool = True
+):
     if use_raw:
         values = adata.raw[:, genes].X
     else:
@@ -22,13 +26,22 @@ def _get_specificity(genes: list[str], clust_mask: np.ndarray, adata: sc.AnnData
     return 1 - fpr
 
 
-def _get_auc(genes: str, clust_mask: np.ndarray, adata: sc.AnnData):
-    return np.array([roc_auc_score(clust_mask, adata.raw[:, g].X.A[:, 0]) for g in genes])
+def _get_auc(genes: np.ndarray | Sequence[str], clust_mask: np.ndarray, adata: sc.AnnData, use_raw: bool = True):
+    if use_raw:
+        values = adata.raw[:, genes].X
+    else:
+        values = adata[:, genes].X
+
+    if issparse(values):
+        values = values.toarray()
+
+    return np.array([roc_auc_score(clust_mask, x) for x in values.T])
 
 
 def get_markers_per_cluster(
     adata: sc.AnnData,
     cluster_key: str = "leiden",
+    method="wilcoxon",
     min_specificity: float = 0.75,
     min_markers: int = 15,
     max_markers: int = 200,
@@ -42,6 +55,8 @@ def get_markers_per_cluster(
         Anndata object
     cluster_key : str
         Key of the cluster column in adata.obs
+    method : str
+        Method for `sc.tl.rank_genes_groups`
     min_specificity : float
         Minimum specificity
     min_markers : int
@@ -58,27 +73,26 @@ def get_markers_per_cluster(
 
     """
     logger.info("Computing marker genes per cluster")
-    sc.tl.rank_genes_groups(adata, groupby=cluster_key, method="wilcoxon", use_raw=use_raw)
+    sc.tl.rank_genes_groups(adata, groupby=cluster_key, method=method, use_raw=use_raw)
 
     marker_dfs = {}
     logger.info("Iterating over clusters to compute specificity and AUC values.")
     for cli in tqdm(adata.obs[cluster_key].unique()):
+        logger.debug("Computing specificity for cluster %s", cli)
         # get a list of differentially expressed genes
-        genes = adata.uns["rank_genes_groups"]["names"][cli][:max_markers]
+        genes = np.array(adata.uns["rank_genes_groups"]["names"][cli])[:max_markers]
 
         # compute their specificity
         clust_mask = adata.obs[cluster_key] == cli
-        logger.debug("Computing specificity for cluster %s", cli)
-        specificity = _get_specificity(genes, clust_mask, adata)
+        specificity = _get_specificity(genes=genes, clust_mask=clust_mask, adata=adata, use_raw=use_raw)
 
         # filter genes by specificity
         mask = specificity >= min(min_specificity, sorted(specificity)[-min_markers])
-        genes = genes[mask]
-        specificity = specificity[mask]
+        genes, specificity = genes[mask], specificity[mask]
 
         # compute AUCs
         logger.debug("Computing AUC for cluster %s", cli)
-        auc = _get_auc(genes, clust_mask, adata)
+        auc = _get_auc(genes=genes, clust_mask=clust_mask, adata=adata, use_raw=use_raw)
         marker_dfs[cli] = DataFrame({"gene": genes, "specificity": specificity, "auc": auc})
 
     return Series(marker_dfs)
