@@ -20,7 +20,7 @@ class Prompts:
     Only output data in the following format:
     ```
     - marker_gene_description: description of what the markers mean. Example: markers A,B,C are associated with X, while D is related to Y
-    - cell_type_annotation: name of this cell type
+    - cell_type_annotation: name of this cell type. If unknown, use 'unknown'.
     - cell_state_annotation: cell state if there is anything specific, 'normal' otherwise
     - annotation_confidence: one of 'low', 'medium', 'high'
     - reason_for_confidence_estimate: reason for the confidence estimate
