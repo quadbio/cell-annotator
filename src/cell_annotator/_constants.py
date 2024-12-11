@@ -4,7 +4,7 @@ from pydantic import BaseModel
 class Prompts:
     """Prompts for scRNA-seq cell annotation tasks."""
 
-    CELL_TYPE_PROMPT = "Provide me a comprehensive hierarchy of cell types that are expected in {species} {tissue}."
+    CELL_TYPE_PROMPT = "Provide me a comprehensive list of cell types that are expected in {species} {tissue}."
     CELL_TYPE_MARKER_PROMPT = "Now, for each cell type specify a list of {n_markers} marker genes that are specific to it. Make sure that you provided markers for **each** cell type you mentioned above."
 
     ANNOTATION_PROMPT = """
