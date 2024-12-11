@@ -7,7 +7,7 @@ from tqdm.auto import tqdm
 
 from cell_annotator._constants import ExpectedCellTypeOutput, ExpectedMarkerGeneOutput, PredictedCellTypeOutput, Prompts
 from cell_annotator._logging import logger
-from cell_annotator.tl.utils import _get_auc, _get_specificity, _query_openai
+from cell_annotator.utils import _get_auc, _get_specificity, _query_openai
 
 MAX_MARKERS_RAW = 200
 MIN_MARKERS_RAW = 15
@@ -53,7 +53,7 @@ class CellAnnotator:
         if os.getenv("OPENAI_API_KEY"):
             logger.info("The environment variable `OPENAI_API_KEY` is set (that's good).")
         else:
-            raise OSError(
+            logger.warning(
                 "The environment variable `OPENAI_API_KEY` is not set. Head over to https://platform.openai.com/api-keys to get a key, store it in an .env file, and read it using `python-dotenv`."
             )
 

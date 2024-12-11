@@ -1,7 +1,7 @@
 from importlib.metadata import version
 
-from . import pl, pp, tl
+from .model import CellAnnotator
 
-__all__ = ["pl", "pp", "tl"]
+__all__ = ["CellAnnotator"]
 
 __version__ = version("cell-annotator")
