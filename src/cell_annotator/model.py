@@ -127,7 +127,7 @@ class CellAnnotator:
             model=self.model,
             max_tokens=max_tokens,
         )
-        self.expected_cell_types = res_types.choices[0].message.parsed.expected_cell_types
+        self.expected_cell_types = res_types.expected_cell_types
 
         marker_gene_prompt = [
             {"role": "assistant", "content": "; ".join(self._expected_cell_types)},
@@ -145,7 +145,7 @@ class CellAnnotator:
         )
         self.expected_marker_genes = {
             cell_type_markers.cell_type_name: cell_type_markers.expected_marker_genes
-            for cell_type_markers in res_markers.choices[0].message.parsed.expected_markers_per_cell_type
+            for cell_type_markers in res_markers.expected_markers_per_cell_type
         }
 
     def get_cluster_markers(
@@ -308,14 +308,13 @@ class CellAnnotator:
                 expected_markers=expected_markers_string,
             )
 
-            res = _query_openai(
+            answers[cluster] = _query_openai(
                 agent_description=agent_desc,
                 instruction=annotation_prompt,
                 response_format=PredictedCellTypeOutput,
                 model=self.model,
                 max_tokens=max_tokens,
             )
-            answers[cluster] = res.choices[0].message.parsed
 
         logger.info("Writing annotation results to `self.annotation_df`.")
         self.annotation_df = DataFrame.from_dict({k: v.model_dump() for k, v in answers.items()}, orient="index")

@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 
 import numpy as np
+import openai
 import scanpy as sc
 from openai import OpenAI
 from pydantic import BaseModel
@@ -22,16 +23,24 @@ def _query_openai(
 
     if other_messages is None:
         other_messages = []
+    try:
+        completion = client.beta.chat.completions.parse(
+            model=model,
+            messages=[{"role": "system", "content": agent_description}, {"role": "user", "content": instruction}]
+            + other_messages,
+            response_format=response_format,
+            max_tokens=max_tokens,
+        )
 
-    res = client.beta.chat.completions.parse(
-        model=model,
-        messages=[{"role": "system", "content": agent_description}, {"role": "user", "content": instruction}]
-        + other_messages,
-        response_format=response_format,
-        max_tokens=max_tokens,
-    )
-
-    return res
+        response = completion.choices[0].message
+        if response.parsed:
+            return response.parsed
+        elif response.refusal:
+            raise ValueError(f"The model refused to respond: {response.refusal}")
+    except openai.LengthFinishReasonError as e:
+        raise ValueError("Maximum number of tokens exceeded. Try increasing `max_tokens`.") from e
+    except Exception as e:
+        raise e
 
 
 def _get_specificity(
