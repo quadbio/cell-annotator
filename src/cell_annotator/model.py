@@ -102,7 +102,7 @@ class CellAnnotator:
         logger.info("Writing expected marker genes `self.expected_marker genes`.")
         self._expected_marker_genes = value
 
-    def get_expected_cell_types(self, n_markers: int = 5, max_tokens: int | None = 1000):
+    def get_expected_cell_type_markers(self, n_markers: int = 5, max_tokens: int | None = 1000):
         """Get expected cell types and marker genes.
 
         Parameters
@@ -148,7 +148,7 @@ class CellAnnotator:
             for cell_type_markers in res_markers.choices[0].message.parsed.expected_markers_per_cell_type
         }
 
-    def get_markers(
+    def get_cluster_markers(
         self,
         method: str = "wilcoxon",
         min_specificity: float = 0.75,
@@ -206,9 +206,9 @@ class CellAnnotator:
         self.marker_gene_dfs = marker_dfs
 
         # filter to the top markers
-        self._filter_markers(min_auc=min_auc, max_markers=max_markers)
+        self._filter_cluster_markers(min_auc=min_auc, max_markers=max_markers)
 
-    def _filter_markers(self, min_auc: float, max_markers: int):
+    def _filter_cluster_markers(self, min_auc: float, max_markers: int):
         """Get top markers
 
         Parameters
@@ -241,7 +241,7 @@ class CellAnnotator:
         logger.info("Writing top marker genes to `self.marker_genes`.")
         self.marker_genes = sorted_marker_genes
 
-    def _update_cluster_labels(self, key_added: str):
+    def _update_adata_annotations(self, key_added: str):
         """Update cluster labels in adata object."""
         if self.annotation_df is None:
             raise ValueError("Run `annotate_clusters` first to get annotation results.")
@@ -274,10 +274,16 @@ class CellAnnotator:
         """
         answers = {}
         if self._expected_marker_genes is None:
-            raise ValueError("Expected marker genes have not been queried yet. Run `get_expected_cell_types` first.")
+            logger.info(
+                "Querying expected cell type markers with default parameters. Run `get_expected_cell_type_markers` for more control."
+            )
+            self.get_expected_cell_type_markers()
 
         if self.marker_genes is None:
-            raise ValueError("Marker genes have not been computed yet. Run `get_markers` first.")
+            logger.info(
+                "Computing cluster marker genes using default parameters. Run `get_cluster_markers` for more control. "
+            )
+            self.get_cluster_markers()
 
         # parse expected markers into a string
         expected_markers_string = "\n".join(
@@ -315,4 +321,6 @@ class CellAnnotator:
         self.annotation_df = DataFrame.from_dict({k: v.model_dump() for k, v in answers.items()}, orient="index")
 
         # update the adata object with the annotations
-        self._update_cluster_labels(key_added=key_added)
+        self._update_adata_annotations(key_added=key_added)
+
+        return self
