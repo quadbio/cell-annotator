@@ -4,11 +4,13 @@ from pydantic import BaseModel
 class Prompts:
     """Prompts for scRNA-seq cell annotation tasks."""
 
-    CELL_TYPE_PROMPT = "Provide me a comprehensive list of cell types that are expected in {species} {tissue}."
+    CELL_TYPE_PROMPT = (
+        "Provide me a comprehensive list of cell types that are expected in {species} {tissue} at stage `{stage}`."
+    )
     CELL_TYPE_MARKER_PROMPT = "Now, for each cell type specify a list of {n_markers} marker genes that are specific to it. Make sure that you provided markers for **each** cell type you mentioned above."
 
     ANNOTATION_PROMPT = """
-    You need to annotate a {species} {tissue} dataset. You found gene markers for each cluster and need to determine clusters' identities.
+    You need to annotate a {species} {tissue} dataset at stage `{stage}`. You found gene markers for each cluster and need to determine clusters' identities.
     Below is a short list of markers for each cluster:
 
     {actual_markers_all}
@@ -20,9 +22,9 @@ class Prompts:
     Only output data in the following format:
     ```
     - marker_gene_description: description of what the markers mean. Example: markers A,B,C are associated with X, while D is related to Y
-    - cell_type_annotation: name of this cell type. If unknown, use 'Unknown'. Capitalize the first letter.
-    - cell_state_annotation: cell state if there is anything specific, 'Normal' otherwise
-    - annotation_confidence: one of 'Low', 'Medium', 'High'
+    - cell_type_annotation: name of this cell type. If unknown, use 'unknown'.
+    - cell_state_annotation: cell state if there is anything specific, 'normal' otherwise
+    - annotation_confidence: one of 'low', 'medium', 'high'
     - reason_for_confidence_estimate: reason for the confidence estimate
     ```
     """.strip()

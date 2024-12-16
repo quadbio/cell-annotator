@@ -24,6 +24,8 @@ class CellAnnotator:
         Species name
     tissue : str
         Tissue name
+    stage : str
+        Developmental stage. Default is 'adult'.
     cluster_key : str
         Key of the cluster column in adata.obs
     model : str
@@ -35,6 +37,7 @@ class CellAnnotator:
         adata: sc.AnnData,
         species: str,
         tissue: str,
+        stage: str = "adult",
         cluster_key: str = "leiden",
         model: str = "gpt-4o-mini",
     ):
@@ -42,6 +45,7 @@ class CellAnnotator:
         self.adata = adata
         self.species = species
         self.tissue = tissue
+        self.stage = stage
         self.cluster_key = cluster_key
         self.marker_gene_dfs = None
         self.marker_genes = None
@@ -60,7 +64,7 @@ class CellAnnotator:
     def __repr__(self):
         return (
             f"CellAnnotator(model={self.model!r}, species={self.species!r}, "
-            f"tissue={self.tissue!r}, cluster_key={self.cluster_key!r})"
+            f"tissue={self.tissue!r}, stage={self.stage!r}, cluster_key={self.cluster_key!r})"
         )
 
     @property
@@ -116,7 +120,7 @@ class CellAnnotator:
         -------
         Nothing, sets `self.expected_cell_types` and `self.expected_marker_genes`.
         """
-        cell_type_prompt = Prompts.CELL_TYPE_PROMPT.format(species=self.species, tissue=self.tissue)
+        cell_type_prompt = Prompts.CELL_TYPE_PROMPT.format(species=self.species, tissue=self.tissue, stage=self.stage)
         agent_desc = Prompts.AGENT_DESCRIPTION.format(species=self.species)
 
         logger.info("Querying cell types.")
@@ -302,6 +306,7 @@ class CellAnnotator:
             annotation_prompt = Prompts.ANNOTATION_PROMPT.format(
                 species=self.species,
                 tissue=self.tissue,
+                stage=self.stage,
                 actual_markers_all=actual_markers_all,
                 cluster_id=cluster,
                 actual_markers_cluster=actual_markers_cluster,
