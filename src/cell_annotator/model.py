@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import scanpy as sc
+from dotenv import load_dotenv
 from pandas import DataFrame
 from tqdm.auto import tqdm
 
@@ -53,12 +54,15 @@ class CellAnnotator:
         self._expected_cell_types = None
         self._expected_marker_genes = None
 
+        # laod environmental variables
+        load_dotenv()
+
         # Check if the environment variable OPENAI_API_KEY is set
         if os.getenv("OPENAI_API_KEY"):
             logger.info("The environment variable `OPENAI_API_KEY` is set (that's good).")
         else:
             logger.warning(
-                "The environment variable `OPENAI_API_KEY` is not set. Head over to https://platform.openai.com/api-keys to get a key, store it in an .env file, and read it using `python-dotenv`."
+                "The environment variable `OPENAI_API_KEY` is not set. Head over to https://platform.openai.com/api-keys to get a key and store it in an .env file."
             )
 
     def __repr__(self):
@@ -134,7 +138,7 @@ class CellAnnotator:
         self.expected_cell_types = res_types.expected_cell_types
 
         marker_gene_prompt = [
-            {"role": "assistant", "content": "; ".join(self._expected_cell_types)},
+            {"role": "assistant", "content": "; ".join(self._expected_cell_types) if self._expected_cell_types else ""},
             {"role": "user", "content": Prompts.CELL_TYPE_MARKER_PROMPT.format(n_markers=n_markers)},
         ]
 

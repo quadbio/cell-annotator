@@ -4,11 +4,12 @@ import numpy as np
 import openai
 import scanpy as sc
 from openai import OpenAI
-from pydantic import BaseModel
 from scipy.sparse import issparse
 from sklearn.metrics import roc_auc_score
 
-ResponseOutput = type[BaseModel]
+from cell_annotator._constants import ExpectedCellTypeOutput, ExpectedMarkerGeneOutput, PredictedCellTypeOutput
+
+ResponseOutput = ExpectedCellTypeOutput | ExpectedMarkerGeneOutput | PredictedCellTypeOutput
 
 
 def _query_openai(
@@ -18,7 +19,7 @@ def _query_openai(
     response_format: ResponseOutput,
     other_messages: list | None = None,
     max_tokens: int | None = None,
-) -> BaseModel:
+) -> ResponseOutput:
     client = OpenAI()
 
     if other_messages is None:
@@ -41,6 +42,8 @@ def _query_openai(
         raise ValueError("Maximum number of tokens exceeded. Try increasing `max_tokens`.") from e
     except Exception as e:
         raise e
+
+    raise ValueError("Failed to get a valid response from the model.")
 
 
 def _get_specificity(
