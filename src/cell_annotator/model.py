@@ -112,10 +112,7 @@ class SampleAnnotator(BaseAnnotator):
         self.marker_genes = None
 
     def __repr__(self):
-        return (
-            f"SampleAnnotator(model={self.model!r}, species={self.species!r}, "
-            f"tissue={self.tissue!r}, stage={self.stage!r}, cluster_key={self.cluster_key!r}, sample_name={self.sample_name!r}, n_cells={self.adata.n_obs:,})"
-        )
+        return f"SampleAnnotator(sample_name={self.sample_name!r}, n_clusters={self.adata.obs[self.cluster_key].nunique()}, n_cells={self.adata.n_obs:,})"
 
     def get_cluster_markers(
         self,
@@ -212,13 +209,15 @@ class SampleAnnotator(BaseAnnotator):
         logger.debug("Writing top marker genes to `self.sample_annotators['%s'].marker_genes`.", self.sample_name)
         self.marker_genes = sorted_marker_genes
 
-    def annotate_clusters(self, max_tokens: int | None = None):
+    def annotate_clusters(self, max_tokens: int | None = None, min_markers: int = 2):
         """Annotate clusters based on marker genes.
 
         Parameters
         ----------
         max_tokens : int
             Maximum number of tokens for OpenAI API.
+        min_markers : int
+            Minimum number of requires marker genes per cluster.
 
         Returns
         -------
@@ -246,27 +245,42 @@ class SampleAnnotator(BaseAnnotator):
         # loop over clusters to annotate
         logger.debug("Iterating over clusters to annotate.")
         for cluster in self.marker_genes:
-            actual_markers_cluster = ", ".join(self.marker_genes[cluster])
+            actual_markers_cluster = self.marker_genes[cluster]
 
-            # fill in the annotation prompt
-            annotation_prompt = Prompts.ANNOTATION_PROMPT.format(
-                species=self.species,
-                tissue=self.tissue,
-                stage=self.stage,
-                actual_markers_all=actual_markers_all,
-                cluster_id=cluster,
-                actual_markers_cluster=actual_markers_cluster,
-                expected_markers=expected_markers_string,
-            )
+            if len(actual_markers_cluster) < min_markers:
+                failure_reason = f"Too few markers provided for cluster {cluster} in sample `{self.sample_name}` ({len(actual_markers_cluster)}<{min_markers})."
+                logger.warning(failure_reason)
+                answers[cluster] = PredictedCellTypeOutput.default_failure(failure_reason=failure_reason)
+            else:
+                actual_markers_cluster_string = ", ".join(actual_markers_cluster)
 
-            answers[cluster] = self._query_openai(
-                instruction=annotation_prompt,
-                response_format=PredictedCellTypeOutput,
-                max_tokens=max_tokens,
-            )
+                # fill in the annotation prompt
+                annotation_prompt = Prompts.ANNOTATION_PROMPT.format(
+                    species=self.species,
+                    tissue=self.tissue,
+                    stage=self.stage,
+                    actual_markers_all=actual_markers_all,
+                    cluster_id=cluster,
+                    actual_markers_cluster=actual_markers_cluster_string,
+                    expected_markers=expected_markers_string,
+                )
+
+                answers[cluster] = self._query_openai(
+                    instruction=annotation_prompt,
+                    response_format=PredictedCellTypeOutput,
+                    max_tokens=max_tokens,
+                )
 
         logger.debug("Writing annotation results to `self.sample_annotators['%s'].annotation_df`.", self.sample_name)
         self.annotation_df = DataFrame.from_dict({k: v.model_dump() for k, v in answers.items()}, orient="index")
+
+        # add the marker genes we used
+        self.annotation_df.insert(
+            0, "marker_genes", {key: ", ".join(value) for key, value in self.marker_genes.items()}
+        )
+
+        # add the number of cells per cluster
+        self.annotation_df.insert(0, "n_cells", self.adata.obs[self.cluster_key].value_counts().to_dict())
 
 
 class CellAnnotator(BaseAnnotator):
@@ -325,9 +339,12 @@ class CellAnnotator(BaseAnnotator):
         self._initialize_sample_annotators()
 
     def __repr__(self):
+        sample_summary = ", ".join(f"'{sample_id}'" for sample_id in self.sample_annotators)
         return (
             f"CellAnnotator(model={self.model!r}, species={self.species!r}, "
-            f"tissue={self.tissue!r}, stage={self.stage!r}, cluster_key={self.cluster_key!r}, sample_key={self.sample_key!r}, n_samples={len(self.sample_annotators)!r})"
+            f"tissue={self.tissue!r}, stage={self.stage!r}, cluster_key={self.cluster_key!r}, "
+            f"sample_key={self.sample_key!r})\n"
+            f"with `{len(self.sample_annotators)!r}` sample(s) in `.sample_annotators`: {sample_summary}"
         )
 
     def _initialize_sample_annotators(self):

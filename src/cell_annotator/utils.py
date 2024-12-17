@@ -8,6 +8,7 @@ from scipy.sparse import issparse
 from sklearn.metrics import roc_auc_score
 
 from cell_annotator._constants import ExpectedCellTypeOutput, ExpectedMarkerGeneOutput, PredictedCellTypeOutput
+from cell_annotator._logging import logger
 
 ResponseOutput = ExpectedCellTypeOutput | ExpectedMarkerGeneOutput | PredictedCellTypeOutput
 
@@ -37,13 +38,22 @@ def _query_openai(
         if response.parsed:
             return response.parsed
         elif response.refusal:
-            raise ValueError(f"The model refused to respond: {response.refusal}")
-    except openai.LengthFinishReasonError as e:
-        raise ValueError("Maximum number of tokens exceeded. Try increasing `max_tokens`.") from e
-    except Exception as e:
-        raise e
+            failure_reason = f"Model refused to respond: {response.refusal}"
+            logger.warning(failure_reason)
+            return response_format.default_failure(failure_reason=failure_reason)
+        else:
+            failure_reason = "Unknown model failure."
+            logger.warning(failure_reason)
+            return response_format.default_failure(failure_reason=failure_reason)
+    except openai.LengthFinishReasonError:
+        failure_reason = "Maximum number of tokens exceeded. Try increasing `max_tokens`."
+        logger.warning(failure_reason)
+        return response_format.default_failure(failure_reason=failure_reason)
 
-    raise ValueError("Failed to get a valid response from the model.")
+    except openai.OpenAIError as e:
+        failure_reason = f"OpenAI API error: {str(e)}"
+        logger.warning(failure_reason)
+        return response_format.default_failure(failure_reason=failure_reason)
 
 
 def _get_specificity(

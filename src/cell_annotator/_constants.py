@@ -38,6 +38,12 @@ class ExpectedCellTypeOutput(BaseModel):
     """Expected cell types output."""
 
     expected_cell_types: list[str]
+    reason_for_failure: str | None = None  # Optional field for failure reasons
+
+    @classmethod
+    def default_failure(cls, failure_reason: str = "Manual fallback due to model failure."):
+        """Return a default output in case of failure, with a custom failure reason."""
+        return cls(expected_cell_types=[], reason_for_failure=failure_reason)
 
 
 class CellTypeMarkers(BaseModel):
@@ -51,6 +57,12 @@ class ExpectedMarkerGeneOutput(BaseModel):
     """Marker gene output."""
 
     expected_markers_per_cell_type: list[CellTypeMarkers]
+    reason_for_failure: str | None = None  # Optional field for failure reasons
+
+    @classmethod
+    def default_failure(cls, failure_reason: str = "Manual fallback due to model failure."):
+        """Return a default output in case of failure, with a custom failure reason."""
+        return cls(expected_markers_per_cell_type=[], reason_for_failure=failure_reason)
 
 
 class PredictedCellTypeOutput(BaseModel):
@@ -61,3 +73,14 @@ class PredictedCellTypeOutput(BaseModel):
     cell_state_annotation: str
     annotation_confidence: str
     reason_for_confidence_estimate: str
+
+    @classmethod
+    def default_failure(cls, failure_reason: str = "Manual fallback due to model failure."):
+        """Return a default output in case of failure, with a custom failure reason."""
+        return cls(
+            marker_gene_description="Unknown",
+            cell_type_annotation="Unknown",
+            cell_state_annotation="Unknown",
+            annotation_confidence="Low",
+            reason_for_confidence_estimate=failure_reason,
+        )
