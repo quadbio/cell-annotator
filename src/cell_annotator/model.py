@@ -8,7 +8,7 @@ from tqdm.auto import tqdm
 
 from cell_annotator._constants import ExpectedCellTypeOutput, ExpectedMarkerGeneOutput, PredictedCellTypeOutput, Prompts
 from cell_annotator._logging import logger
-from cell_annotator.utils import _get_auc, _get_specificity, _query_openai
+from cell_annotator.utils import _get_auc, _get_specificity, _query_openai, _try_sorting_dict_by_keys
 
 ResponseOutput = ExpectedCellTypeOutput | ExpectedMarkerGeneOutput | PredictedCellTypeOutput
 
@@ -106,6 +106,7 @@ class SampleAnnotator(BaseAnnotator):
         self.adata = adata
         self.sample_name = sample_name
         self.cluster_key = cluster_key
+        self.n_cells_per_cluster = _try_sorting_dict_by_keys(self.adata.obs[self.cluster_key].value_counts().to_dict())
         self.expected_marker_genes = None
         self.annotation_df = None
         self.marker_gene_dfs = None
@@ -199,15 +200,8 @@ class SampleAnnotator(BaseAnnotator):
             top_genes = df[df.auc > min_auc].sort_values("auc", ascending=False).head(max_markers).gene.values
             marker_genes[cluster] = list(top_genes)
 
-        # Attempt to sort the dictionary by cluster keys
-        try:
-            sorted_marker_genes = {k: marker_genes[k] for k in sorted(marker_genes, key=lambda x: int(x))}
-        except ValueError:
-            logger.warning("Cluster keys cannot be converted to integers. Keeping original order.")
-            sorted_marker_genes = marker_genes
-
         logger.debug("Writing top marker genes to `self.sample_annotators['%s'].marker_genes`.", self.sample_name)
-        self.marker_genes = sorted_marker_genes
+        self.marker_genes = _try_sorting_dict_by_keys(marker_genes)
 
     def annotate_clusters(self, max_tokens: int | None = None, min_markers: int = 2):
         """Annotate clusters based on marker genes.

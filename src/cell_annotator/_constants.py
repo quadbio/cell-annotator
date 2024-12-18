@@ -2,7 +2,10 @@ from pydantic import BaseModel
 
 
 class Prompts:
-    """Prompts for scRNA-seq cell annotation tasks."""
+    """Prompts for scRNA-seq cell annotation tasks.
+
+    These were heavily inspired by https://github.com/VPetukhov/GPTCellAnnotator.
+    """
 
     CELL_TYPE_PROMPT = (
         "Provide me a comprehensive list of cell types that are expected in {species} {tissue} at stage `{stage}`."
