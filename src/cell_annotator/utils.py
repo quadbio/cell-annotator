@@ -1,3 +1,4 @@
+import re
 from collections.abc import Sequence
 
 import numpy as np
@@ -84,14 +85,61 @@ def _get_auc(genes: np.ndarray | Sequence[str], clust_mask: np.ndarray, adata: s
     return np.array([roc_auc_score(clust_mask, x) for x in values.T])
 
 
-def _try_sorting_dict_by_keys(unsorted_dict):
+def _try_sorting_dict_by_keys(unsorted_dict: dict):
+    def extract_number(key):
+        # Extract the first numeric part of the string using regex
+        match = re.search(r"\d+", key)
+        return int(match.group()) if match else float("inf")  # Use a high value for keys without numbers
+
     try:
-        sorted_dict = {k: unsorted_dict[k] for k in sorted(unsorted_dict, key=lambda x: int(x))}
-    except ValueError:
-        logger.debug("Cluster keys cannot be converted to integers. Keeping original order.")
+        sorted_dict = {k: unsorted_dict[k] for k in sorted(unsorted_dict, key=extract_number)}
+    except ValueError as e:
+        logger.debug("Error during sorting: %s. Keeping original order.", e)
         sorted_dict = unsorted_dict
 
     return sorted_dict
+
+
+def _filter_by_category_size(adata: sc.AnnData, column: str, min_size: int) -> dict:
+    """
+    Remove small categories in a categorical column and set their entries to `None`.
+
+    Prints and returns information about the removed clusters.
+
+    Parameters
+    ----------
+    adata : sc.AnnData
+        AnnData object with the column to modify.
+    column : str
+        Name of the categorical column in `adata.obs`.
+    min_size : int
+        Minimum number of elements a category must have to remain unchanged.
+
+    Returns
+    -------
+    removed_info : dict
+        Information about the removed categories, including category names and their sizes.
+    """
+    # Count the size of each category
+    category_counts = adata.obs[column].value_counts()
+
+    # Identify small categories
+    small_categories = category_counts[category_counts < min_size]
+
+    # If no categories to remove, return early
+    if small_categories.empty:
+        return {}
+
+    # Collect information to return
+    removed_info = small_categories.to_dict()
+
+    # Filter out cells in small categories
+    adata._inplace_subset_obs(~adata.obs[column].isin(small_categories.index))
+
+    # Remove unused categories
+    adata.obs[column] = adata.obs[column].cat.remove_unused_categories()
+
+    return removed_info
 
 
 def _shuffle_cluster_key_categories_within_sample(

@@ -4,11 +4,18 @@ import numpy as np
 import scanpy as sc
 from dotenv import load_dotenv
 from pandas import DataFrame
+from scanpy.tools._rank_genes_groups import _Method
 from tqdm.auto import tqdm
 
 from cell_annotator._constants import ExpectedCellTypeOutput, ExpectedMarkerGeneOutput, PredictedCellTypeOutput, Prompts
 from cell_annotator._logging import logger
-from cell_annotator.utils import _get_auc, _get_specificity, _query_openai, _try_sorting_dict_by_keys
+from cell_annotator.utils import (
+    _filter_by_category_size,
+    _get_auc,
+    _get_specificity,
+    _query_openai,
+    _try_sorting_dict_by_keys,
+)
 
 ResponseOutput = ExpectedCellTypeOutput | ExpectedMarkerGeneOutput | PredictedCellTypeOutput
 
@@ -48,6 +55,7 @@ class BaseAnnotator:
         self.stage = stage
         self.cluster_key = cluster_key
         self.model = model
+        self.expected_marker_genes = {}  # this gets set in the SampleAnnotator only when the user calls `.annotate_clusters`
 
     def _query_openai(
         self,
@@ -105,9 +113,8 @@ class SampleAnnotator(BaseAnnotator):
         super().__init__(species, tissue, stage, cluster_key, model)
         self.adata = adata
         self.sample_name = sample_name
-        self.cluster_key = cluster_key
         self.n_cells_per_cluster = _try_sorting_dict_by_keys(self.adata.obs[self.cluster_key].value_counts().to_dict())
-        self.expected_marker_genes = None
+        self.annotation_dict = {}
         self.annotation_df = None
         self.marker_gene_dfs = None
         self.marker_genes = None
@@ -117,7 +124,8 @@ class SampleAnnotator(BaseAnnotator):
 
     def get_cluster_markers(
         self,
-        method: str = "wilcoxon",
+        method: _Method | None = "wilcoxon",
+        min_cells_per_cluster: int = 3,
         min_specificity: float = 0.75,
         min_auc: float = 0.7,
         max_markers: int = 7,
@@ -129,6 +137,8 @@ class SampleAnnotator(BaseAnnotator):
         ----------
         method : str
             Method for `sc.tl.rank_genes_groups`
+        min_cells_per_cluster : int
+            Include only clusters with at least this many cells.
         min_specificity : float
             Minimum specificity
         min_auc : float
@@ -143,6 +153,9 @@ class SampleAnnotator(BaseAnnotator):
         Nothing, sets `self.marker_dfs`.
 
         """
+        # filter out very small clusters
+        self._filter_clusters_by_cell_number(min_cells_per_cluster)
+
         logger.debug("Computing marker genes per cluster using method `%s`.", method)
         sc.tl.rank_genes_groups(
             self.adata, groupby=self.cluster_key, method=method, use_raw=use_raw, n_genes=MAX_MARKERS_RAW
@@ -176,6 +189,14 @@ class SampleAnnotator(BaseAnnotator):
 
         # filter to the top markers
         self._filter_cluster_markers(min_auc=min_auc, max_markers=max_markers)
+
+    def _filter_clusters_by_cell_number(self, min_cells_per_cluster: int):
+        removed_info = _filter_by_category_size(self.adata, column=self.cluster_key, min_size=min_cells_per_cluster)
+        if removed_info:
+            for cat, size in removed_info.items():
+                failure_reason = f"Not enough cells for cluster {cat} in sample `{self.sample_name}` ({size}<{min_cells_per_cluster})."
+                logger.warning(failure_reason)
+                self.annotation_dict[cat] = PredictedCellTypeOutput.default_failure(failure_reason=failure_reason)
 
     def _filter_cluster_markers(self, min_auc: float, max_markers: int):
         """Get top markers
@@ -218,8 +239,6 @@ class SampleAnnotator(BaseAnnotator):
         Nothing, writes annotation results to `self.annotation_df`.
 
         """
-        answers = {}
-
         if self.marker_genes is None:
             logger.debug(
                 "Computing cluster marker genes using default parameters. Run `get_cluster_markers` for more control. "
@@ -244,7 +263,7 @@ class SampleAnnotator(BaseAnnotator):
             if len(actual_markers_cluster) < min_markers:
                 failure_reason = f"Too few markers provided for cluster {cluster} in sample `{self.sample_name}` ({len(actual_markers_cluster)}<{min_markers})."
                 logger.warning(failure_reason)
-                answers[cluster] = PredictedCellTypeOutput.default_failure(failure_reason=failure_reason)
+                self.annotation_dict[cluster] = PredictedCellTypeOutput.default_failure(failure_reason=failure_reason)
             else:
                 actual_markers_cluster_string = ", ".join(actual_markers_cluster)
 
@@ -259,14 +278,16 @@ class SampleAnnotator(BaseAnnotator):
                     expected_markers=expected_markers_string,
                 )
 
-                answers[cluster] = self._query_openai(
+                self.annotation_dict[cluster] = self._query_openai(
                     instruction=annotation_prompt,
                     response_format=PredictedCellTypeOutput,
                     max_tokens=max_tokens,
                 )
 
         logger.debug("Writing annotation results to `self.sample_annotators['%s'].annotation_df`.", self.sample_name)
-        self.annotation_df = DataFrame.from_dict({k: v.model_dump() for k, v in answers.items()}, orient="index")
+        self.annotation_df = DataFrame.from_dict(
+            {k: v.model_dump() for k, v in self.annotation_dict.items()}, orient="index"
+        )
 
         # add the marker genes we used
         self.annotation_df.insert(
@@ -274,7 +295,7 @@ class SampleAnnotator(BaseAnnotator):
         )
 
         # add the number of cells per cluster
-        self.annotation_df.insert(0, "n_cells", self.adata.obs[self.cluster_key].value_counts().to_dict())
+        self.annotation_df.insert(0, "n_cells", self.n_cells_per_cluster)
 
 
 class CellAnnotator(BaseAnnotator):
@@ -312,10 +333,8 @@ class CellAnnotator(BaseAnnotator):
         super().__init__(species, tissue, stage, cluster_key, model)
         self.adata = adata
         self.sample_key = sample_key
-        self.cluster_key = cluster_key
         self.sample_annotators = {}
-        self.expected_cell_types = None
-        self.expected_marker_genes = None
+        self.expected_cell_types = []
         self.harmonized_annotations = None
 
         # laod environmental variables
@@ -412,7 +431,7 @@ class CellAnnotator(BaseAnnotator):
 
     def get_cluster_markers(
         self,
-        method: str = "wilcoxon",
+        method: _Method | None = "wilcoxon",
         min_specificity: float = 0.75,
         min_auc: float = 0.7,
         max_markers: int = 7,
