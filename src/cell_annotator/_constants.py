@@ -32,30 +32,21 @@ class Prompts:
     ```
     """.strip()
 
-    UNIQUE_CELL_TYPES_PROMPT = """
-    You annotated several samples of a {species} {tissue} dataset at stage `{stage}`. Now you need to make these cell type annotations consistent across all samples.
-    Here are the cell type annotations you predicted per sample and cluster, and the marker genes you used for that:
-
-    {annotation_summary}
-
-    Determine a list of the unique cell types found across all samples. Remove duplicates. Unify annotations by making use of the proviced marker genes: if two clusters have very similar sets of marker genes, they should get the same cell type label.
-    """.strip()
-
     AGENT_DESCRIPTION = (
         "You're an expert bioinformatician, proficient in scRNA-seq analysis with background in {species} cell biology."
     )
 
 
-class CellTypeListOutput(BaseModel):
+class ExpectedCellTypeOutput(BaseModel):
     """List of cell types"""
 
-    cell_types: list[str]
+    expected_cell_types: list[str]
     reason_for_failure: str | None = None  # Optional field for failure reasons
 
     @classmethod
     def default_failure(cls, failure_reason: str = "Manual fallback due to model failure."):
         """Return a default output in case of failure, with a custom failure reason."""
-        return cls(cell_types=[], reason_for_failure=failure_reason)
+        return cls(expected_cell_types=[], reason_for_failure=failure_reason)
 
 
 class CellTypeMarkers(BaseModel):

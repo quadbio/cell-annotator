@@ -7,7 +7,7 @@ from pandas import DataFrame
 from scanpy.tools._rank_genes_groups import _Method
 from tqdm.auto import tqdm
 
-from cell_annotator._constants import CellTypeListOutput, ExpectedMarkerGeneOutput, PredictedCellTypeOutput, Prompts
+from cell_annotator._constants import ExpectedCellTypeOutput, ExpectedMarkerGeneOutput, PredictedCellTypeOutput, Prompts
 from cell_annotator._logging import logger
 from cell_annotator.utils import (
     _filter_by_category_size,
@@ -18,7 +18,7 @@ from cell_annotator.utils import (
     _try_sorting_dict_by_keys,
 )
 
-ResponseOutput = CellTypeListOutput | ExpectedMarkerGeneOutput | PredictedCellTypeOutput
+ResponseOutput = ExpectedCellTypeOutput | ExpectedMarkerGeneOutput | PredictedCellTypeOutput
 
 
 MAX_MARKERS_RAW = 200
@@ -307,22 +307,6 @@ class SampleAnnotator(BaseAnnotator):
         # add the number of cells per cluster
         self.annotation_df.insert(0, "n_cells", self.n_cells_per_cluster)
 
-    def harmonize_annotations(self, unique_cell_types: list[str]):
-        """Harmonize annotations across samples.
-
-        Parameters
-        ----------
-        unique_cell_types : list[str]
-            List of unique cell types across all samples.
-
-        Returns
-        -------
-        Nothing, updates `self.annotation_df`.
-
-        """
-        if self.annotation_df is None or self.annotation_df.empty:
-            raise ValueError("Run `annotate_clusters` first to compute cluster annotations.")
-
 
 class CellAnnotator(BaseAnnotator):
     """
@@ -433,11 +417,11 @@ class CellAnnotator(BaseAnnotator):
         logger.info("Querying cell types.")
         res_types = self._query_openai(
             instruction=cell_type_prompt,
-            response_format=CellTypeListOutput,
+            response_format=ExpectedCellTypeOutput,
         )
 
         logger.info("Writing expected cell types to `self.expected_cell_types`")
-        self.expected_cell_types = res_types.cell_types
+        self.expected_cell_types = res_types.expected_cell_types
 
         marker_gene_prompt = [
             {"role": "assistant", "content": "; ".join(self.expected_cell_types) if self.expected_cell_types else ""},
@@ -539,36 +523,3 @@ class CellAnnotator(BaseAnnotator):
         )
 
         return summary_string
-
-    def harmonize_annotations(self):
-        """
-        Harmonize annotations across samples.
-
-        Parameters
-        ----------
-        pass
-
-        Returns
-        -------
-        pd.DataFrame
-            A single DataFrame with harmonized annotations for all samples.
-        """
-        # Step 1: get a list of consistent cell types across all samples.
-        summary_string = self._get_summary_string(filter_by="Unknown")
-        unique_cell_type_prompt = Prompts.UNIQUE_CELL_TYPES_PROMPT.format(
-            species=self.species, tissue=self.tissue, stage=self.stage, annotation_summary=summary_string
-        )
-
-        logger.info("Querying unique cell types across samples.")
-        res_unique_cell_types = self._query_openai(
-            instruction=unique_cell_type_prompt,
-            response_format=CellTypeListOutput,
-        )
-
-        logger.info("Writing unique cell types across samples to `self.unique_cell_types`.")
-        self.unique_cell_types = res_unique_cell_types.cell_types
-
-        # Step 2: iterate over samples to map cell type annotations to unique and consistent names
-        logger.info("Iterating over samples to harmonize annotations. ")
-        for annotator in tqdm(self.sample_annotators.values()):
-            annotator.harmonize_annotations(unique_cell_types=self.unique_cell_types)

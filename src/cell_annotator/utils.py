@@ -9,10 +9,10 @@ from openai import OpenAI
 from scipy.sparse import issparse
 from sklearn.metrics import roc_auc_score
 
-from cell_annotator._constants import CellTypeListOutput, ExpectedMarkerGeneOutput, PredictedCellTypeOutput
+from cell_annotator._constants import ExpectedCellTypeOutput, ExpectedMarkerGeneOutput, PredictedCellTypeOutput
 from cell_annotator._logging import logger
 
-ResponseOutput = CellTypeListOutput | ExpectedMarkerGeneOutput | PredictedCellTypeOutput
+ResponseOutput = ExpectedCellTypeOutput | ExpectedMarkerGeneOutput | PredictedCellTypeOutput
 
 
 def _query_openai(
