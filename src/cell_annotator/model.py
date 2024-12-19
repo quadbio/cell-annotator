@@ -384,6 +384,9 @@ class CellAnnotator(BaseAnnotator):
                 model=self.model,
             )
 
+        # sort by keys for visual pleasure
+        self.sample_annotators = _try_sorting_dict_by_keys(self.sample_annotators)
+
     def get_expected_cell_type_markers(self, n_markers: int = 5, max_tokens: int | None = 1000):
         """Get expected cell types and marker genes.
 
