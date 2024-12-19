@@ -320,7 +320,7 @@ class SampleAnnotator(BaseAnnotator):
         Nothing, updates `self.annotation_df`.
 
         """
-        if not self.annotation_df:
+        if self.annotation_df is None or self.annotation_df.empty:
             raise ValueError("Run `annotate_clusters` first to compute cluster annotations.")
 
 
@@ -495,22 +495,39 @@ class CellAnnotator(BaseAnnotator):
                 use_raw=use_raw,
             )
 
-    def annotate_clusters(self, min_markers: int = 2):
+    def annotate_clusters(self, min_markers: int = 2, key_added: str = "cell_type_predicted"):
         """Annotate clusters based on marker genes.
 
         Parameters
         ----------
         min_markers: int, optional
             Minimal number of required marker genes per cluster.
+        key_added: str, optional
+            Name of the key in .obs where updated annotations will be written
 
         Returns
         -------
-        Nothing, writes annotation results to `self.annotation_df`.
+        Nothing, writes annotation results to `self.annotation_df` and annotations to `self.adata.obs[key_added]`
 
         """
         logger.info("Iterating over samples to annotate clusters. ")
         for annotator in tqdm(self.sample_annotators.values()):
             annotator.annotate_clusters(min_markers=min_markers, expected_marker_genes=self.expected_marker_genes)
+
+        # write the annotatation results back to self.adata
+        self._update_adata_annotations(key_added=key_added)
+
+    def _update_adata_annotations(self, key_added: str):
+        """Update cluster labels in adata object."""
+        logger.info("Writing updated cluster labels to `adata.obs[`%s'].", key_added)
+        self.adata.obs[key_added] = None
+
+        for sample, annotator in self.sample_annotators.items():
+            mask = self.adata.obs[self.sample_key] == sample
+            label_mapping = annotator.annotation_df["cell_type_annotation"].to_dict()
+            self.adata.obs.loc[mask, key_added] = self.adata.obs.loc[mask, self.cluster_key].map(label_mapping)
+
+        self.adata.obs[key_added] = self.adata.obs[key_added].astype("category")
 
     def _get_summary_string(self, filter_by: str = "") -> str:
         if not self.sample_annotators:
