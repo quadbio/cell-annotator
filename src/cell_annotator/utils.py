@@ -3,15 +3,16 @@ from collections.abc import Sequence
 
 import numpy as np
 import openai
+import pandas as pd
 import scanpy as sc
 from openai import OpenAI
 from scipy.sparse import issparse
 from sklearn.metrics import roc_auc_score
 
-from cell_annotator._constants import ExpectedCellTypeOutput, ExpectedMarkerGeneOutput, PredictedCellTypeOutput
+from cell_annotator._constants import CellTypeListOutput, ExpectedMarkerGeneOutput, PredictedCellTypeOutput
 from cell_annotator._logging import logger
 
-ResponseOutput = ExpectedCellTypeOutput | ExpectedMarkerGeneOutput | PredictedCellTypeOutput
+ResponseOutput = CellTypeListOutput | ExpectedMarkerGeneOutput | PredictedCellTypeOutput
 
 
 def _query_openai(
@@ -98,6 +99,15 @@ def _try_sorting_dict_by_keys(unsorted_dict: dict):
         sorted_dict = unsorted_dict
 
     return sorted_dict
+
+
+def _format_annotation(df: pd.DataFrame, filter_by: str) -> str:
+    """Format the annotation DataFrame by filtering and generating summary strings."""
+    filtered_df = df[df["cell_type_annotation"] != filter_by]
+    return "\n".join(
+        f' - Cluster {index}: {row["marker_genes"]} -> {row["cell_type_annotation"]}'
+        for index, row in filtered_df.iterrows()
+    )
 
 
 def _filter_by_category_size(adata: sc.AnnData, column: str, min_size: int) -> dict:

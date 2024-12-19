@@ -7,17 +7,18 @@ from pandas import DataFrame
 from scanpy.tools._rank_genes_groups import _Method
 from tqdm.auto import tqdm
 
-from cell_annotator._constants import ExpectedCellTypeOutput, ExpectedMarkerGeneOutput, PredictedCellTypeOutput, Prompts
+from cell_annotator._constants import CellTypeListOutput, ExpectedMarkerGeneOutput, PredictedCellTypeOutput, Prompts
 from cell_annotator._logging import logger
 from cell_annotator.utils import (
     _filter_by_category_size,
+    _format_annotation,
     _get_auc,
     _get_specificity,
     _query_openai,
     _try_sorting_dict_by_keys,
 )
 
-ResponseOutput = ExpectedCellTypeOutput | ExpectedMarkerGeneOutput | PredictedCellTypeOutput
+ResponseOutput = CellTypeListOutput | ExpectedMarkerGeneOutput | PredictedCellTypeOutput
 
 
 MAX_MARKERS_RAW = 200
@@ -40,6 +41,8 @@ class BaseAnnotator:
         Key of the cluster column in adata.obs. Default is 'leiden'.
     model : str, optional
         OpenAI model name. Default is 'gpt-4o-mini'.
+    max_tokens : int, optional
+        Maximum number of tokens the model is allowed to use.
     """
 
     def __init__(
@@ -49,20 +52,20 @@ class BaseAnnotator:
         stage: str = "adult",
         cluster_key: str = "leiden",
         model: str = "gpt-4o-mini",
+        max_tokens: int | None = None,
     ):
         self.species = species
         self.tissue = tissue
         self.stage = stage
         self.cluster_key = cluster_key
         self.model = model
-        self.expected_marker_genes = {}  # this gets set in the SampleAnnotator only when the user calls `.annotate_clusters`
+        self.max_tokens = max_tokens
 
     def _query_openai(
         self,
         instruction: str,
         response_format: ResponseOutput,
         other_messages: list | None = None,
-        max_tokens: int | None = None,
     ) -> ResponseOutput:
         agent_description = Prompts.AGENT_DESCRIPTION.format(species=self.species)
 
@@ -72,7 +75,7 @@ class BaseAnnotator:
             model=self.model,
             response_format=response_format,
             other_messages=other_messages,
-            max_tokens=max_tokens,
+            max_tokens=self.max_tokens,
         )
 
         return response
@@ -98,6 +101,9 @@ class SampleAnnotator(BaseAnnotator):
         Key of the cluster column in adata.obs (inherited from BaseAnnotator).
     model : str, optional
         OpenAI model name (inherited from BaseAnnotator).
+    max_tokens : int, optional
+        Maximum number of tokens the model is allowed to use.
+
     """
 
     def __init__(
@@ -109,15 +115,19 @@ class SampleAnnotator(BaseAnnotator):
         stage: str = "adult",
         cluster_key: str = "leiden",
         model: str = "gpt-4o-mini",
+        max_tokens: int | None = None,
     ):
-        super().__init__(species, tissue, stage, cluster_key, model)
+        super().__init__(species, tissue, stage, cluster_key, model, max_tokens)
         self.adata = adata
         self.sample_name = sample_name
-        self.n_cells_per_cluster = _try_sorting_dict_by_keys(self.adata.obs[self.cluster_key].value_counts().to_dict())
-        self.annotation_dict = {}
+
         self.annotation_df = None
         self.marker_gene_dfs = None
         self.marker_genes = None
+        self.annotation_dict = {}
+
+        # compute the number of cells per cluster
+        self.n_cells_per_cluster = _try_sorting_dict_by_keys(self.adata.obs[self.cluster_key].value_counts().to_dict())
 
     def __repr__(self):
         return f"SampleAnnotator(sample_name={self.sample_name!r}, n_clusters={self.adata.obs[self.cluster_key].nunique()}, n_cells={self.adata.n_obs:,})"
@@ -224,7 +234,7 @@ class SampleAnnotator(BaseAnnotator):
         logger.debug("Writing top marker genes to `self.sample_annotators['%s'].marker_genes`.", self.sample_name)
         self.marker_genes = _try_sorting_dict_by_keys(marker_genes)
 
-    def annotate_clusters(self, max_tokens: int | None = None, min_markers: int = 2):
+    def annotate_clusters(self, min_markers: int, expected_marker_genes: dict[str, list[str]] | None):
         """Annotate clusters based on marker genes.
 
         Parameters
@@ -233,6 +243,7 @@ class SampleAnnotator(BaseAnnotator):
             Maximum number of tokens for OpenAI API.
         min_markers : int
             Minimum number of requires marker genes per cluster.
+        expected_marker_genes :
 
         Returns
         -------
@@ -246,9 +257,9 @@ class SampleAnnotator(BaseAnnotator):
             self.get_cluster_markers()
 
         # parse expected markers into a string
-        if self.expected_marker_genes:
+        if expected_marker_genes:
             expected_markers_string = "\n".join(
-                [f"{cell_type}: {', '.join(genes)}" for cell_type, genes in self.expected_marker_genes.items()]
+                [f"{cell_type}: {', '.join(genes)}" for cell_type, genes in expected_marker_genes.items()]
             )
         else:
             expected_markers_string = ""
@@ -281,12 +292,11 @@ class SampleAnnotator(BaseAnnotator):
                 self.annotation_dict[cluster] = self._query_openai(
                     instruction=annotation_prompt,
                     response_format=PredictedCellTypeOutput,
-                    max_tokens=max_tokens,
                 )
 
         logger.debug("Writing annotation results to `self.sample_annotators['%s'].annotation_df`.", self.sample_name)
         self.annotation_df = DataFrame.from_dict(
-            {k: v.model_dump() for k, v in self.annotation_dict.items()}, orient="index"
+            {k: v.model_dump() for k, v in _try_sorting_dict_by_keys(self.annotation_dict).items()}, orient="index"
         )
 
         # add the marker genes we used
@@ -296,6 +306,22 @@ class SampleAnnotator(BaseAnnotator):
 
         # add the number of cells per cluster
         self.annotation_df.insert(0, "n_cells", self.n_cells_per_cluster)
+
+    def harmonize_annotations(self, unique_cell_types: list[str]):
+        """Harmonize annotations across samples.
+
+        Parameters
+        ----------
+        unique_cell_types : list[str]
+            List of unique cell types across all samples.
+
+        Returns
+        -------
+        Nothing, updates `self.annotation_df`.
+
+        """
+        if not self.annotation_df:
+            raise ValueError("Run `annotate_clusters` first to compute cluster annotations.")
 
 
 class CellAnnotator(BaseAnnotator):
@@ -336,6 +362,8 @@ class CellAnnotator(BaseAnnotator):
         self.sample_annotators = {}
         self.expected_cell_types = []
         self.harmonized_annotations = None
+        self.unique_cell_types = None
+        self.expected_marker_genes = None
 
         # laod environmental variables
         load_dotenv()
@@ -382,20 +410,19 @@ class CellAnnotator(BaseAnnotator):
                 stage=self.stage,
                 cluster_key=self.cluster_key,
                 model=self.model,
+                max_tokens=self.max_tokens,
             )
 
         # sort by keys for visual pleasure
         self.sample_annotators = _try_sorting_dict_by_keys(self.sample_annotators)
 
-    def get_expected_cell_type_markers(self, n_markers: int = 5, max_tokens: int | None = 1000):
+    def get_expected_cell_type_markers(self, n_markers: int = 5):
         """Get expected cell types and marker genes.
 
         Parameters
         ----------
         n_markers : int
             Number of marker genes per cell type.
-        max_tokens : int
-            Maximum number of tokens for OpenAI API.
 
         Returns
         -------
@@ -406,12 +433,11 @@ class CellAnnotator(BaseAnnotator):
         logger.info("Querying cell types.")
         res_types = self._query_openai(
             instruction=cell_type_prompt,
-            response_format=ExpectedCellTypeOutput,
-            max_tokens=max_tokens,
+            response_format=CellTypeListOutput,
         )
 
         logger.info("Writing expected cell types to `self.expected_cell_types`")
-        self.expected_cell_types = res_types.expected_cell_types
+        self.expected_cell_types = res_types.cell_types
 
         marker_gene_prompt = [
             {"role": "assistant", "content": "; ".join(self.expected_cell_types) if self.expected_cell_types else ""},
@@ -423,7 +449,6 @@ class CellAnnotator(BaseAnnotator):
             instruction=cell_type_prompt,
             other_messages=marker_gene_prompt,
             response_format=ExpectedMarkerGeneOutput,
-            max_tokens=max_tokens,
         )
 
         logger.info("Writing expected marker genes to `self.expected_marker_genes`.")
@@ -470,13 +495,13 @@ class CellAnnotator(BaseAnnotator):
                 use_raw=use_raw,
             )
 
-    def annotate_clusters(self, max_tokens: int | None = None):
+    def annotate_clusters(self, min_markers: int = 2):
         """Annotate clusters based on marker genes.
 
         Parameters
         ----------
-        max_tokens : int
-            Maximum number of tokens for OpenAI API.
+        min_markers: int, optional
+            Minimal number of required marker genes per cluster.
 
         Returns
         -------
@@ -485,24 +510,48 @@ class CellAnnotator(BaseAnnotator):
         """
         logger.info("Iterating over samples to annotate clusters. ")
         for annotator in tqdm(self.sample_annotators.values()):
-            # set expected marker genes only here, so that the user can manually filter
-            annotator.expected_marker_genes = self.expected_marker_genes
-            annotator.annotate_clusters(
-                max_tokens=max_tokens,
-            )
+            annotator.annotate_clusters(min_markers=min_markers, expected_marker_genes=self.expected_marker_genes)
 
-    def harmonize_annotations(self, max_tokens: int | None = None):
+    def _get_summary_string(self, filter_by: str = "") -> str:
+        if not self.sample_annotators:
+            raise ValueError("No SampleAnnotators found. Run `annotate_clusters` first.")
+
+        summary_string = "\n\n".join(
+            f"Sample: {key}\n{_format_annotation(annotator.annotation_df, filter_by)}"
+            for key, annotator in self.sample_annotators.items()
+        )
+
+        return summary_string
+
+    def harmonize_annotations(self):
         """
         Harmonize annotations across samples.
 
         Parameters
         ----------
-        max_tokens : int, optional
-            Maximum number of tokens for OpenAI API.
+        pass
 
         Returns
         -------
         pd.DataFrame
             A single DataFrame with harmonized annotations for all samples.
         """
-        pass
+        # Step 1: get a list of consistent cell types across all samples.
+        summary_string = self._get_summary_string(filter_by="Unknown")
+        unique_cell_type_prompt = Prompts.UNIQUE_CELL_TYPES_PROMPT.format(
+            species=self.species, tissue=self.tissue, stage=self.stage, annotation_summary=summary_string
+        )
+
+        logger.info("Querying unique cell types across samples.")
+        res_unique_cell_types = self._query_openai(
+            instruction=unique_cell_type_prompt,
+            response_format=CellTypeListOutput,
+        )
+
+        logger.info("Writing unique cell types across samples to `self.unique_cell_types`.")
+        self.unique_cell_types = res_unique_cell_types.cell_types
+
+        # Step 2: iterate over samples to map cell type annotations to unique and consistent names
+        logger.info("Iterating over samples to harmonize annotations. ")
+        for annotator in tqdm(self.sample_annotators.values()):
+            annotator.harmonize_annotations(unique_cell_types=self.unique_cell_types)
