@@ -8,9 +8,18 @@ from pandas import DataFrame
 from scanpy.tools._rank_genes_groups import _Method
 from tqdm.auto import tqdm
 
-from cell_annotator._constants import ExpectedCellTypeOutput, ExpectedMarkerGeneOutput, PredictedCellTypeOutput, Prompts
+from cell_annotator._constants import PackageConstants
 from cell_annotator._logging import logger
+from cell_annotator._prompts import Prompts
+from cell_annotator._response_formats import (
+    CellTypeColorOutput,
+    ExpectedCellTypeOutput,
+    ExpectedMarkerGeneOutput,
+    LabelOrderOutput,
+    PredictedCellTypeOutput,
+)
 from cell_annotator.utils import (
+    ResponseOutput,
     _filter_by_category_size,
     _format_annotation,
     _get_auc,
@@ -18,12 +27,6 @@ from cell_annotator.utils import (
     _query_openai,
     _try_sorting_dict_by_keys,
 )
-
-ResponseOutput = ExpectedCellTypeOutput | ExpectedMarkerGeneOutput | PredictedCellTypeOutput
-
-
-MAX_MARKERS_RAW = 200
-MIN_MARKERS_RAW = 15
 
 
 class BaseAnnotator:
@@ -141,7 +144,7 @@ class SampleAnnotator(BaseAnnotator):
         min_auc: float = 0.7,
         max_markers: int = 7,
         use_raw: bool = True,
-    ):
+    ) -> None:
         """Get marker genes per cluster
 
         Parameters
@@ -169,7 +172,7 @@ class SampleAnnotator(BaseAnnotator):
 
         logger.debug("Computing marker genes per cluster using method `%s`.", method)
         sc.tl.rank_genes_groups(
-            self.adata, groupby=self.cluster_key, method=method, use_raw=use_raw, n_genes=MAX_MARKERS_RAW
+            self.adata, groupby=self.cluster_key, method=method, use_raw=use_raw, n_genes=PackageConstants.max_markers
         )
 
         marker_dfs = {}
@@ -185,7 +188,7 @@ class SampleAnnotator(BaseAnnotator):
             specificity = _get_specificity(genes=genes, clust_mask=clust_mask, adata=self.adata, use_raw=use_raw)
 
             # filter genes by specificity
-            mask = specificity >= min(min_specificity, sorted(specificity)[-MIN_MARKERS_RAW])
+            mask = specificity >= min(min_specificity, sorted(specificity)[-PackageConstants.min_markers])
             genes, specificity = genes[mask], specificity[mask]
 
             # compute AUCs
@@ -202,7 +205,7 @@ class SampleAnnotator(BaseAnnotator):
         logger.debug("Writing top marker genes to `self.sample_annotators['%s'].marker_genes`.", self.sample_name)
         self.marker_genes = self._filter_cluster_markers(min_auc=min_auc, max_markers=max_markers)
 
-    def _filter_clusters_by_cell_number(self, min_cells_per_cluster: int):
+    def _filter_clusters_by_cell_number(self, min_cells_per_cluster: int) -> None:
         removed_info = _filter_by_category_size(self.adata, column=self.cluster_key, min_size=min_cells_per_cluster)
         if removed_info:
             for cat, size in removed_info.items():
@@ -236,7 +239,7 @@ class SampleAnnotator(BaseAnnotator):
 
         return _try_sorting_dict_by_keys(marker_genes)
 
-    def annotate_clusters(self, min_markers: int, expected_marker_genes: dict[str, list[str]] | None):
+    def annotate_clusters(self, min_markers: int, expected_marker_genes: dict[str, list[str]] | None) -> None:
         """Annotate clusters based on marker genes.
 
         Parameters
@@ -373,7 +376,7 @@ class CellAnnotator(BaseAnnotator):
             f"with `{len(self.sample_annotators)!r}` sample(s) in `.sample_annotators`: {sample_summary}"
         )
 
-    def _initialize_sample_annotators(self):
+    def _initialize_sample_annotators(self) -> None:
         """Create a SampleAnnotator for each batch."""
         # If sample_key is None, treat the entire dataset as a single batch
         if self.sample_key is None:
@@ -401,7 +404,7 @@ class CellAnnotator(BaseAnnotator):
         # sort by keys for visual pleasure
         self.sample_annotators = _try_sorting_dict_by_keys(self.sample_annotators)
 
-    def get_expected_cell_type_markers(self, n_markers: int = 5):
+    def get_expected_cell_type_markers(self, n_markers: int = 5) -> None:
         """Get expected cell types and marker genes.
 
         Parameters
@@ -449,7 +452,7 @@ class CellAnnotator(BaseAnnotator):
         min_auc: float = 0.7,
         max_markers: int = 7,
         use_raw: bool = True,
-    ):
+    ) -> None:
         """Get marker genes per cluster
 
         Parameters
@@ -510,7 +513,7 @@ class CellAnnotator(BaseAnnotator):
 
         return self
 
-    def _update_adata_annotations(self, key_added: str):
+    def _update_adata_annotations(self, key_added: str) -> None:
         """Update cluster labels in adata object."""
         logger.info("Writing updated cluster labels to `adata.obs[`%s'].", key_added)
         self.adata.obs[key_added] = None
@@ -522,7 +525,7 @@ class CellAnnotator(BaseAnnotator):
 
         self.adata.obs[key_added] = self.adata.obs[key_added].astype("category")
 
-    def _get_summary_string(self, filter_by: str = "") -> str:
+    def _get_annotation_summary_string(self, filter_by: str = "") -> str:
         if not self.sample_annotators:
             raise ValueError("No SampleAnnotators found. Run `annotate_clusters` first.")
 
@@ -532,3 +535,92 @@ class CellAnnotator(BaseAnnotator):
         )
 
         return summary_string
+
+    def reorder_clusters(self, keys: list[str], unknown_key: str = PackageConstants.unknown_name) -> None:
+        """Assign consistent ordering across cell type annotations.
+
+        Parameters
+        ----------
+        keys : list[str]
+            List of keys in `adata.obs` to reorder.
+        unknown_key : str, optional
+            Name of the unknown category. Default is 'Unknown'.
+
+        Returns
+        -------
+        Nothing, updates `adata.obs` with reordered categories
+        """
+        if isinstance(keys, str):
+            keys = [keys]
+
+        # format the current annotations sets as a string and prepare the query prompt
+        current_annotation_sets = "\n\n".join(
+            f'- annotation name: {key}.\n- current label ordering: {", ".join(cl for cl in self.adata.obs[key].unique() if cl != unknown_key)}'
+            for key in keys
+        )
+        order_prompt = Prompts.ORDER_PROMPT.format(current_annotation_sets=current_annotation_sets)
+
+        # query openai and format the response as a dict
+        response = self._query_openai(
+            instruction=order_prompt,
+            response_format=LabelOrderOutput,
+        )
+        label_sets = {
+            label_order.annotation_name: label_order.new_label_ordering
+            for label_order in response.global_annotation_ordering
+        }
+
+        # Re-add the unknown category, make sure that we retained all categories, and write to adata
+        for obs_key, new_cluster_names in label_sets.items():
+            if unknown_key in self.adata.obs[obs_key].cat.categories:
+                logger.debug(
+                    "Readding the unknown category with key '%s'",
+                    unknown_key,
+                )
+                new_cluster_names.append(unknown_key)
+            if not set(self.adata.obs[obs_key].unique()) == set(new_cluster_names):
+                raise ValueError(f"New categories for key {obs_key} differ from original categories.")
+
+            logger.info("Writing categories for key '%s'", obs_key)
+            self.adata.obs[obs_key] = self.adata.obs[obs_key].cat.set_categories(new_cluster_names)
+
+    def get_cluster_colors(self, keys: list[str], unknown_key: str = PackageConstants.unknown_name) -> None:
+        """Query OpenAI for relational cluster colors.
+
+        Parameters
+        ----------
+        keys : list[str]
+            List of keys in `adata.obs` to harmonize.
+        unknown_key : str
+            Name of the unknown category.
+
+        Returns
+        -------
+        Nothing, updates `adata.uns` with cluster colors.
+
+        """
+        if isinstance(keys, str):
+            keys = [keys]
+
+        logger.info("Iterating over obs keys")
+        for key in tqdm(keys):
+            # format the cluster names as a string and prepare the query prompt
+            cluster_names = ", ".join(cl for cl in self.adata.obs[key].cat.categories if cl != unknown_key)
+            color_prompt = Prompts.COLOR_PROMPT.format(cluster_names=cluster_names)
+
+            response = self._query_openai(instruction=color_prompt, response_format=CellTypeColorOutput)
+            color_dict = {
+                item.original_cell_type_label: item.assigned_color for item in response.cell_type_to_color_mapping
+            }
+
+            # Re-add the unknown category, make sure that we retained all categories, and write to adata
+            if unknown_key in self.adata.obs[key].cat.categories:
+                logger.debug(
+                    "Readding the unknown category with key '%s'",
+                    unknown_key,
+                )
+                color_dict[unknown_key] = PackageConstants.unknown_color
+
+            if list(self.adata.obs[key].cat.categories) != list(color_dict.keys()):
+                raise ValueError(f"New categories for key {key} differ from original categories.")
+            self.adata.uns[f"{key}_colors"] = color_dict.values()
