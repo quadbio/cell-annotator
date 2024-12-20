@@ -494,12 +494,20 @@ class CellAnnotator(BaseAnnotator):
         Nothing, writes annotation results to `self.annotation_df` and annotations to `self.adata.obs[key_added]`
 
         """
+        if self.expected_marker_genes is None:
+            logger.debug(
+                "Querying expected cell type markers wiht default parameters. Run `get_expected_cell_type_markers` for more control. "
+            )
+            self.get_expected_cell_type_markers()
+
         logger.info("Iterating over samples to annotate clusters. ")
         for annotator in tqdm(self.sample_annotators.values()):
             annotator.annotate_clusters(min_markers=min_markers, expected_marker_genes=self.expected_marker_genes)
 
         # write the annotatation results back to self.adata
         self._update_adata_annotations(key_added=key_added)
+
+        return self
 
     def _update_adata_annotations(self, key_added: str):
         """Update cluster labels in adata object."""
