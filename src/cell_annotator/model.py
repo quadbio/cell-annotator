@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import pandas as pd
 import scanpy as sc
 from dotenv import load_dotenv
 from pandas import DataFrame
@@ -121,10 +122,10 @@ class SampleAnnotator(BaseAnnotator):
         self.adata = adata
         self.sample_name = sample_name
 
-        self.annotation_df = None
-        self.marker_gene_dfs = None
-        self.marker_genes = None
-        self.annotation_dict = {}
+        self.annotation_df: pd.DataFrame | None = None
+        self.marker_gene_dfs: dict[str, pd.DataFrame] | None = None
+        self.marker_genes: dict[str, list[str]] = {}
+        self.annotation_dict: dict[str, ResponseOutput] = {}
 
         # compute the number of cells per cluster
         self.n_cells_per_cluster = _try_sorting_dict_by_keys(self.adata.obs[self.cluster_key].value_counts().to_dict())
@@ -160,7 +161,7 @@ class SampleAnnotator(BaseAnnotator):
 
         Returns
         -------
-        Nothing, sets `self.marker_dfs`.
+        Nothing, sets `self.marker_dfs` and `self.marker_genes`.
 
         """
         # filter out very small clusters
@@ -198,7 +199,8 @@ class SampleAnnotator(BaseAnnotator):
         self.marker_gene_dfs = marker_dfs
 
         # filter to the top markers
-        self._filter_cluster_markers(min_auc=min_auc, max_markers=max_markers)
+        logger.debug("Writing top marker genes to `self.sample_annotators['%s'].marker_genes`.", self.sample_name)
+        self.marker_genes = self._filter_cluster_markers(min_auc=min_auc, max_markers=max_markers)
 
     def _filter_clusters_by_cell_number(self, min_cells_per_cluster: int):
         removed_info = _filter_by_category_size(self.adata, column=self.cluster_key, min_size=min_cells_per_cluster)
@@ -208,7 +210,7 @@ class SampleAnnotator(BaseAnnotator):
                 logger.warning(failure_reason)
                 self.annotation_dict[cat] = PredictedCellTypeOutput.default_failure(failure_reason=failure_reason)
 
-    def _filter_cluster_markers(self, min_auc: float, max_markers: int):
+    def _filter_cluster_markers(self, min_auc: float, max_markers: int) -> dict[str, list[str]]:
         """Get top markers
 
         Parameters
@@ -220,7 +222,8 @@ class SampleAnnotator(BaseAnnotator):
 
         Returns
         -------
-        Nothing, sets `self.marker_genes`.
+        dict[str, list[str]]
+            Top marker genes per cluster.
 
         """
         if self.marker_gene_dfs is None:
@@ -231,8 +234,7 @@ class SampleAnnotator(BaseAnnotator):
             top_genes = df[df.auc > min_auc].sort_values("auc", ascending=False).head(max_markers).gene.values
             marker_genes[cluster] = list(top_genes)
 
-        logger.debug("Writing top marker genes to `self.sample_annotators['%s'].marker_genes`.", self.sample_name)
-        self.marker_genes = _try_sorting_dict_by_keys(marker_genes)
+        return _try_sorting_dict_by_keys(marker_genes)
 
     def annotate_clusters(self, min_markers: int, expected_marker_genes: dict[str, list[str]] | None):
         """Annotate clusters based on marker genes.
@@ -250,7 +252,7 @@ class SampleAnnotator(BaseAnnotator):
         Nothing, writes annotation results to `self.annotation_df`.
 
         """
-        if self.marker_genes is None:
+        if not self.marker_genes:
             logger.debug(
                 "Computing cluster marker genes using default parameters. Run `get_cluster_markers` for more control. "
             )
@@ -343,11 +345,10 @@ class CellAnnotator(BaseAnnotator):
         super().__init__(species, tissue, stage, cluster_key, model)
         self.adata = adata
         self.sample_key = sample_key
-        self.sample_annotators = {}
-        self.expected_cell_types = []
-        self.harmonized_annotations = None
-        self.unique_cell_types = None
-        self.expected_marker_genes = None
+
+        self.sample_annotators: dict[str, SampleAnnotator] = {}
+        self.expected_cell_types: list[str] = []
+        self.expected_marker_genes: dict[str, list[str]] | None = None
 
         # laod environmental variables
         load_dotenv()
