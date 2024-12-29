@@ -37,10 +37,12 @@ class Prompts:
     2. You cannot change the names of any labels. Use the labels exactly as they are provided.
     3. The order must be biologically meaningful and consistent across annotation sets.
 
+    Biologically meaningful order means grouping similar cell types together based on their lineage, function, or tissue origin. For example, immune cells should be grouped together, and different types of muscle cells should be grouped together.
+
     Below are the complete cell type annotations across all sets, in their original order:
     {current_annotation_sets}
 
-    For each annotation set, reorder these labels into a biologically meaningful order that is consistent with the global context.
+    For each annotation set, reorder these labels into a biologically meaningful order that is consistent with the global context. Ensure that the order is consistent across all annotation sets.
 
     ### Example:
     If you are provides with the following sets of annotations:
@@ -59,7 +61,7 @@ class Prompts:
     - new label ordering: T cells, Macrophages, Cardiomyocytes, Epicardial cells, Smooth muscle cells, Pericytes, Endothelial cells, Fibroblasts, Adipocytes, Neurons
 
     ### Output format:
-    For each annotation set, provide output in the following format
+    For each annotation set, provide output in the following format:
     ```
     - annotation_name: the original annotation name provided
     - new_label_ordering: the new, globally consistent ordering of cell type names
@@ -71,9 +73,8 @@ class Prompts:
 
     {cluster_names}
 
-    Now assign colors to these cell the labels. Follow these rules:
-    1. Use colors that are biologically meaningful: similar cell types should have related colors (e.g., shades of the same color family).
-    2. All labels must have distinct colors to avoid confusion.
+    Now assign colors to these cell type labels. Follow these rules:
+    1. Use colors that are biologically meaningful: similar cell types should have related colors (e.g., shades of the same color family), and unrelated cell types should have distinct colors.
     3. Use hexadecimal color codes (e.g., "#1f77b4").
     4. Do not use white, black, or grey colors.
     5. Do not modify the order of the labels.

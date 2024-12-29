@@ -9,6 +9,7 @@ from openai import OpenAI
 from scipy.sparse import issparse
 from sklearn.metrics import roc_auc_score
 
+from cell_annotator._constants import PackageConstants
 from cell_annotator._logging import logger
 from cell_annotator._response_formats import (
     ExpectedCellTypeOutput,
@@ -196,3 +197,34 @@ def _shuffle_cluster_key_categories_within_sample(
     adata.obs[key_added] = adata.obs[key_added].cat.set_categories(original_categories)
 
     return adata
+
+
+def _get_unique_cell_types(
+    adata: sc.AnnData, keys: list[str], unknown_key: str = PackageConstants.unknown_name
+) -> list[str]:
+    """
+    Given a set of .obs keys, return a list of all unique cell type names across these keys, excluding any "unknown" labels.
+
+    Parameters
+    ----------
+    adata : AnnData
+        The annotated data matrix.
+    keys : list of str
+        List of .obs keys pointing to categorical adata.obs annotations.
+    unknown_key : str, optional
+        The label to exclude from the list, by default "unknown".
+
+    Returns
+    -------
+    list of str
+        List of unique cell type names.
+    """
+    unique_cell_types = set()
+    if isinstance(keys, str):
+        keys = [keys]
+
+    for key in keys:
+        categories = adata.obs[key].unique()
+        unique_cell_types.update(cat for cat in categories if cat != unknown_key)
+
+    return list(unique_cell_types)

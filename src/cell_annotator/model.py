@@ -24,6 +24,7 @@ from cell_annotator.utils import (
     _format_annotation,
     _get_auc,
     _get_specificity,
+    _get_unique_cell_types,
     _query_openai,
     _try_sorting_dict_by_keys,
 )
@@ -554,6 +555,9 @@ class CellAnnotator(BaseAnnotator):
             keys = [keys]
 
         # format the current annotations sets as a string and prepare the query prompt
+        unique_cell_types = _get_unique_cell_types(self.adata, keys, unknown_key)
+        print(unique_cell_types)
+
         current_annotation_sets = "\n\n".join(
             f'- annotation name: {key}.\n- current label ordering: {", ".join(cl for cl in self.adata.obs[key].unique() if cl != unknown_key)}'
             for key in keys
@@ -561,6 +565,7 @@ class CellAnnotator(BaseAnnotator):
         order_prompt = Prompts.ORDER_PROMPT.format(current_annotation_sets=current_annotation_sets)
 
         # query openai and format the response as a dict
+        logger.info("Querying label ordering.")
         response = self._query_openai(
             instruction=order_prompt,
             response_format=LabelOrderOutput,
@@ -578,8 +583,18 @@ class CellAnnotator(BaseAnnotator):
                     unknown_key,
                 )
                 new_cluster_names.append(unknown_key)
-            if not set(self.adata.obs[obs_key].unique()) == set(new_cluster_names):
-                raise ValueError(f"New categories for key {obs_key} differ from original categories.")
+
+            original_categories = self.adata.obs[obs_key].unique()
+            if not set(original_categories) == set(new_cluster_names):
+                added_categories = set(new_cluster_names) - set(original_categories)
+                removed_categories = set(original_categories) - set(new_cluster_names)
+                if added_categories or removed_categories:
+                    error_message = f"New categories for key `{obs_key}` differ from original categories."
+                    if added_categories:
+                        error_message += f" Added categories: `{', '.join(added_categories)}`."
+                    if removed_categories:
+                        error_message += f" Removed categories: `{', '.join(removed_categories)}`."
+                    raise ValueError(error_message)
 
             logger.info("Writing categories for key '%s'", obs_key)
             self.adata.obs[obs_key] = self.adata.obs[obs_key].cat.set_categories(new_cluster_names)
