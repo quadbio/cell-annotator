@@ -8,7 +8,7 @@ from pandas import DataFrame
 from scanpy.tools._rank_genes_groups import _Method
 from tqdm.auto import tqdm
 
-from cell_annotator._constants import PackageConstants
+from cell_annotator._constants import PackageConstants, PromptExamples
 from cell_annotator._logging import logger
 from cell_annotator._prompts import Prompts
 from cell_annotator._response_formats import (
@@ -23,6 +23,7 @@ from cell_annotator.utils import (
     _filter_by_category_size,
     _format_annotation,
     _get_auc,
+    _get_consistent_ordering,
     _get_specificity,
     _get_unique_cell_types,
     _query_openai,
@@ -144,7 +145,7 @@ class SampleAnnotator(BaseAnnotator):
         min_specificity: float = 0.75,
         min_auc: float = 0.7,
         max_markers: int = 7,
-        use_raw: bool = True,
+        use_raw: bool = PackageConstants.use_raw,
     ) -> None:
         """Get marker genes per cluster
 
@@ -452,7 +453,7 @@ class CellAnnotator(BaseAnnotator):
         min_specificity: float = 0.75,
         min_auc: float = 0.7,
         max_markers: int = 7,
-        use_raw: bool = True,
+        use_raw: bool = PackageConstants.use_raw,
     ) -> None:
         """Get marker genes per cluster
 
@@ -537,32 +538,37 @@ class CellAnnotator(BaseAnnotator):
 
         return summary_string
 
-    def reorder_clusters(self, keys: list[str], unknown_key: str = PackageConstants.unknown_name) -> None:
-        """Assign consistent ordering across cell type annotations.
+    def harmonize_annotations(self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name) -> None:
+        """Assign consistent ordering and naming across cell type annotations.
+
+        Note that for multiple samples with many clusters each, this typically requires a more powerful model
+        like `gpt-4o` to work well.
 
         Parameters
         ----------
-        keys : list[str]
+        keys : list[str] | str
             List of keys in `adata.obs` to reorder.
         unknown_key : str, optional
             Name of the unknown category. Default is 'Unknown'.
 
         Returns
         -------
-        Nothing, updates `adata.obs` with reordered categories
+        Nothing, updates `adata.obs` with reordered categories. Underscores will be replaced with spaces.
         """
         if isinstance(keys, str):
             keys = [keys]
 
+        # make the naming consistent: replaces underscores with spaces
+        for key in keys:
+            self.adata.obs[key] = self.adata.obs[key].map(lambda x: x.replace("_", " "))
+
         # format the current annotations sets as a string and prepare the query prompt
         unique_cell_types = _get_unique_cell_types(self.adata, keys, unknown_key)
-        print(unique_cell_types)
-
-        current_annotation_sets = "\n\n".join(
-            f'- annotation name: {key}.\n- current label ordering: {", ".join(cl for cl in self.adata.obs[key].unique() if cl != unknown_key)}'
-            for key in keys
+        order_prompt = Prompts.ORDER_PROMPT.format(
+            unique_cell_types=", ".join(unique_cell_types),
+            example_unordered=PromptExamples.unordered_cell_types,
+            example_ordered=PromptExamples.ordered_cell_types,
         )
-        order_prompt = Prompts.ORDER_PROMPT.format(current_annotation_sets=current_annotation_sets)
 
         # query openai and format the response as a dict
         logger.info("Querying label ordering.")
@@ -570,10 +576,7 @@ class CellAnnotator(BaseAnnotator):
             instruction=order_prompt,
             response_format=LabelOrderOutput,
         )
-        label_sets = {
-            label_order.annotation_name: label_order.new_label_ordering
-            for label_order in response.global_annotation_ordering
-        }
+        label_sets = _get_consistent_ordering(self.adata, response.ordered_cell_type_list, keys)
 
         # Re-add the unknown category, make sure that we retained all categories, and write to adata
         for obs_key, new_cluster_names in label_sets.items():
@@ -599,13 +602,13 @@ class CellAnnotator(BaseAnnotator):
             logger.info("Writing categories for key '%s'", obs_key)
             self.adata.obs[obs_key] = self.adata.obs[obs_key].cat.set_categories(new_cluster_names)
 
-    def get_cluster_colors(self, keys: list[str], unknown_key: str = PackageConstants.unknown_name) -> None:
+    def get_cluster_colors(self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name) -> None:
         """Query OpenAI for relational cluster colors.
 
         Parameters
         ----------
-        keys : list[str]
-            List of keys in `adata.obs` to harmonize.
+        keys : list[str] | str
+            List of keys in `adata.obs` to query colors for.
         unknown_key : str
             Name of the unknown category.
 

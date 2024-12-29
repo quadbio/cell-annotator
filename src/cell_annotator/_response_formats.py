@@ -20,23 +20,16 @@ class CellTypeColorOutput(BaseModel):
         return cls(cell_type_to_color_mapping=[], reason_for_failure=failure_reason)
 
 
-class LabelOrder(BaseModel):
-    """Name and color for a cell type"""
-
-    annotation_name: str
-    new_label_ordering: list[str]
-
-
 class LabelOrderOutput(BaseModel):
     """Dict of cell type labels and colors."""
 
-    global_annotation_ordering: list[LabelOrder]
+    ordered_cell_type_list: list[str]
     reason_for_failure: str | None = None
 
     @classmethod
     def default_failure(cls, failure_reason: str = "Manual fallback due to model failure."):
         """Return a default output in case of failure, with a custom failure reason."""
-        return cls(global_annotation_ordering=[], reason_for_failure=failure_reason)
+        return cls(ordered_cell_type_list=[], reason_for_failure=failure_reason)
 
 
 class ExpectedCellTypeOutput(BaseModel):

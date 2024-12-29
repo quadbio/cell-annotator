@@ -228,3 +228,15 @@ def _get_unique_cell_types(
         unique_cell_types.update(cat for cat in categories if cat != unknown_key)
 
     return list(unique_cell_types)
+
+
+def _get_consistent_ordering(adata: sc.AnnData, global_order: list[str], keys: list[str] | str):
+    consistent_label_sets = {}
+
+    if isinstance(keys, str):
+        keys = [keys]
+
+    for key in keys:
+        labels = adata.obs[key].unique()
+        consistent_label_sets[key] = [label for label in global_order if label in labels]
+    return consistent_label_sets

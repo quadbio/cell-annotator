@@ -30,41 +30,29 @@ class Prompts:
     """.strip()
 
     ORDER_PROMPT = """
-    You are tasked with reordering cell type annotations for global consistency across all annotation sets. The goal is to align the order of labels based on biological relationships and similarities.
+    You are tasked with reordering cell type annotations for global consistency. The goal is to align the order of labels based on biological relationships and similarities.
 
     Here are the rules you must follow:
-    1. For each annotation set, you must include all original elements in the reordered list.
-    2. You cannot change the names of any labels. Use the labels exactly as they are provided.
-    3. The order must be biologically meaningful and consistent across annotation sets.
+    1. You must include all original elements in the reordered list.
+    2. You cannot change the names of any labels. Use the labels exactly as they are provided. Keep all duplicates.
+    3. The order must be biologically meaningful.
 
     Biologically meaningful order means grouping similar cell types together based on their lineage, function, or tissue origin. For example, immune cells should be grouped together, and different types of muscle cells should be grouped together.
 
-    Below are the complete cell type annotations across all sets, in their original order:
-    {current_annotation_sets}
+    Below are the current cell type annotations, in their original, random order:
+    {unique_cell_types}
 
-    For each annotation set, reorder these labels into a biologically meaningful order that is consistent with the global context. Ensure that the order is consistent across all annotation sets.
+    Reorder these labels into a biologically meaningful order.
 
     ### Example:
-    If you are provides with the following sets of annotations:
-
-    - annotation name: cell_type
-    - current label ordering: Myeloid, Ventricular_Cardiomyocyte, Fibroblast, Endothelial, Adipocytes, Pericytes, Atrial_Cardiomyocyte, Smooth_muscle_cells, Neuronal, Lymphoid, Mesothelial
-
-    - annotation name: cell_type_predicted
-    - current label ordering: Macrophages, Cardiomyocytes, Fibroblasts, Endothelial cells, Adipocytes, Pericytes, Smooth muscle cells, Neurons, T cells, Epicardial cells
+    If you are provided with the following list of cell type labels:
+    {example_unordered}
 
     A possible re-ordering could be:
-    - annotation name: cell_type
-    - new label ordering: Myeloid, Lymphoid, Ventricular_Cardiomyocyte, Atrial_Cardiomyocyte, Smooth_muscle_cells, Pericytes, Endothelial, Fibroblast, Mesothelial, Adipocytes, Neuronal
-
-    - annotation name: cell_type_predicted
-    - new label ordering: T cells, Macrophages, Cardiomyocytes, Epicardial cells, Smooth muscle cells, Pericytes, Endothelial cells, Fibroblasts, Adipocytes, Neurons
+    {example_ordered}
 
     ### Output format:
-    For each annotation set, provide output in the following format:
-    ```
-    - annotation_name: the original annotation name provided
-    - new_label_ordering: the new, globally consistent ordering of cell type names
+    Provide the reordered cell type annotations as a list with no additional commnets.
     ```
     """.strip()
 
