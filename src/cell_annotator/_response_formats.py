@@ -1,84 +1,62 @@
-from pydantic import BaseModel
+"""Response formats for the cell annotator API."""
+
+from pydantic import BaseModel, Field
 
 
-class CellTypeColor(BaseModel):
+class BaseOutput(BaseModel):
+    """Base class for output models with a failure reason."""
+
+    reason_for_failure: str | None = None
+
+    @classmethod
+    def default_failure(cls: type["BaseOutput"], failure_reason: str = "Manual fallback due to model failure."):
+        """Return a default output in case of failure, with a custom failure reason."""
+        return cls(reason_for_failure=failure_reason)
+
+
+class CellTypeColor(BaseOutput):
     """Color assignment for a cell type."""
 
-    original_cell_type_label: str
-    assigned_color: str
+    original_cell_type_label: str = Field(default_factory=str)
+    assigned_color: str = Field(default_factory=str)
 
 
-class CellTypeColorOutput(BaseModel):
+class CellTypeColorOutput(BaseOutput):
     """Color assignment for cell types."""
 
-    cell_type_to_color_mapping: list[CellTypeColor]
-    reason_for_failure: str | None = None
-
-    @classmethod
-    def default_failure(cls, failure_reason: str = "Manual fallback due to model failure."):
-        """Return a default output in case of failure, with a custom failure reason."""
-        return cls(cell_type_to_color_mapping=[], reason_for_failure=failure_reason)
+    cell_type_to_color_mapping: list[CellTypeColor] = Field(default_factory=list)
 
 
-class LabelOrderOutput(BaseModel):
+class LabelOrderOutput(BaseOutput):
     """Dict of cell type labels and colors."""
 
-    ordered_cell_type_list: list[str]
-    reason_for_failure: str | None = None
-
-    @classmethod
-    def default_failure(cls, failure_reason: str = "Manual fallback due to model failure."):
-        """Return a default output in case of failure, with a custom failure reason."""
-        return cls(ordered_cell_type_list=[], reason_for_failure=failure_reason)
+    ordered_cell_type_list: list[str] = Field(default_factory=list)
 
 
-class ExpectedCellTypeOutput(BaseModel):
+class ExpectedCellTypeOutput(BaseOutput):
     """List of cell types"""
 
-    expected_cell_types: list[str]
-    reason_for_failure: str | None = None  # Optional field for failure reasons
-
-    @classmethod
-    def default_failure(cls, failure_reason: str = "Manual fallback due to model failure."):
-        """Return a default output in case of failure, with a custom failure reason."""
-        return cls(expected_cell_types=[], reason_for_failure=failure_reason)
+    expected_cell_types: list[str] = Field(default_factory=list)
 
 
-class CellTypeMarkers(BaseModel):
+class CellTypeMarkers(BaseOutput):
     """Expected marker genes for a cell type."""
 
-    cell_type_name: str
-    expected_marker_genes: list[str]
+    cell_type_name: str = Field(default_factory=str)
+    expected_marker_genes: list[str] = Field(default_factory=list)
 
 
-class ExpectedMarkerGeneOutput(BaseModel):
+class ExpectedMarkerGeneOutput(BaseOutput):
     """Marker gene output."""
 
-    expected_markers_per_cell_type: list[CellTypeMarkers]
-    reason_for_failure: str | None = None  # Optional field for failure reasons
-
-    @classmethod
-    def default_failure(cls, failure_reason: str = "Manual fallback due to model failure."):
-        """Return a default output in case of failure, with a custom failure reason."""
-        return cls(expected_markers_per_cell_type=[], reason_for_failure=failure_reason)
+    expected_markers_per_cell_type: list[CellTypeMarkers] = Field(default_factory=list)
 
 
-class PredictedCellTypeOutput(BaseModel):
+class PredictedCellTypeOutput(BaseOutput):
     """Cell type annotation results."""
 
-    marker_gene_description: str
-    cell_type_annotation: str
-    cell_state_annotation: str
-    annotation_confidence: str
-    reason_for_confidence_estimate: str
-
-    @classmethod
-    def default_failure(cls, failure_reason: str = "Manual fallback due to model failure."):
-        """Return a default output in case of failure, with a custom failure reason."""
-        return cls(
-            marker_gene_description="Unknown",
-            cell_type_annotation="Unknown",
-            cell_state_annotation="Unknown",
-            annotation_confidence="Unknown",
-            reason_for_confidence_estimate=failure_reason,
-        )
+    marker_gene_description: str = Field(default_factory=lambda: "Unknown")
+    cell_type_annotation: str = Field(default_factory=lambda: "Unknown")
+    cell_state_annotation: str = Field(default_factory=lambda: "Unknown")
+    annotation_confidence: str = Field(default_factory=lambda: "Unknown")
+    reason_for_confidence_estimate: str = Field(default_factory=lambda: "Unknown")
