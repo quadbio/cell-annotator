@@ -538,11 +538,11 @@ class CellAnnotator(BaseAnnotator):
 
         return summary_string
 
-    def harmonize_annotations(self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name) -> None:
-        """Assign consistent ordering and naming across cell type annotations.
+    def reorder_clusters(self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name) -> None:
+        """Assign consistent ordering across cell type annotations.
 
         Note that for multiple samples with many clusters each, this typically requires a more powerful model
-        like `gpt-4o` to work well.
+        like `gpt-4o` to work well. This method replaces underscores with spaces.
 
         Parameters
         ----------

@@ -1,3 +1,6 @@
+"""Prompts for scRNA-seq cell annotation tasks."""
+
+
 class Prompts:
     """Prompts for scRNA-seq cell annotation tasks.
 

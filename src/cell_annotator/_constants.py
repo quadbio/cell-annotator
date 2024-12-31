@@ -1,3 +1,6 @@
+"""Constants used throughout the package."""
+
+
 class PackageConstants:
     """Constants used througout the package."""
 

@@ -1,3 +1,5 @@
+"""Logging setup for the package."""
+
 import logging
 import os
 
