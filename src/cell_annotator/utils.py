@@ -235,3 +235,32 @@ def _get_consistent_ordering(adata: sc.AnnData, global_order: list[str], keys: l
         labels = adata.obs[key].unique()
         consistent_label_sets[key] = [label for label in global_order if label in labels]
     return consistent_label_sets
+
+
+def validate_list_mapping(list_a: list[str], list_b: list[str], context: str | None = None) -> None:
+    """
+    Validate that the elements in list_b match the elements in list_a.
+
+    Parameters
+    ----------
+    list_a : List[str]
+        The original list of elements.
+    list_b : List[str]
+        The list of elements after mapping.
+    """
+    set_a = set(list_a)
+    set_b = set(list_b)
+
+    if set_a != set_b:
+        added_elements = set_b - set_a
+        removed_elements = set_a - set_b
+        if added_elements or removed_elements:
+            if context:
+                error_message = f"New elements for context `{context}` differ from original elements."
+            else:
+                error_message = "New elements differ from original elements."
+            if added_elements:
+                error_message += f" Added elements: {', '.join(added_elements)}."
+            if removed_elements:
+                error_message += f" Removed elements: {', '.join(removed_elements)}."
+            raise ValueError(error_message)

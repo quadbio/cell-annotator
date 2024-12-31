@@ -30,6 +30,7 @@ from cell_annotator.utils import (
     _get_unique_cell_types,
     _query_openai,
     _try_sorting_dict_by_keys,
+    _validate_list_mapping,
 )
 
 
@@ -574,7 +575,7 @@ class CellAnnotator(BaseAnnotator):
 
         # Step 2: map cell types to harmonized names for each sample annotator
         logger.info("Iterating over samples to harmonize cell type annotations.")
-        for annotator in tqdm(self.sample_annotators.values()):
+        for sample, annotator in tqdm(self.sample_annotators.items()):
             local_cell_types = [cat for cat in annotator.annotation_df["cell_type"].unique() if cat != unknown_key]
 
             mapping_prompt = [
@@ -599,24 +600,16 @@ class CellAnnotator(BaseAnnotator):
             }
 
             # validate keys and values in the mapping
-            if not set(local_cell_types) == set(cell_type_mapping_dict.keys()):
-                added_categories = set(cell_type_mapping_dict.keys()) - set(local_cell_types)
-                removed_categories = set(local_cell_types) - set(cell_type_mapping_dict.keys())
-                if added_categories or removed_categories:
-                    error_message = "New categories differ from original categories."
-                    if added_categories:
-                        error_message += f" Added categories: {', '.join(added_categories)}."
-                    if removed_categories:
-                        error_message += f" Removed categories: {', '.join(removed_categories)}."
-                    raise ValueError(error_message)
+            _validate_list_mapping(local_cell_types, cell_type_mapping_dict.keys(), context=sample)
 
             # Check if all values in cell_type_mapping_dict are in the global_cell_type_set
             missing_cell_types = [
                 value for value in cell_type_mapping_dict.values() if value not in global_cell_type_list
             ]
-
             if missing_cell_types:
-                raise ValueError(f"Some cell types were not found in the global list: {missing_cell_types}")
+                raise ValueError(
+                    f"For sample {sample}, some cell types were not found in the global list: {missing_cell_types}"
+                )
 
             # Re-add the unkonwn category if it was present originally
             original_categories = annotator.annotation_df["cell_type"].unique()
@@ -632,7 +625,7 @@ class CellAnnotator(BaseAnnotator):
             unmapped_cell_types = annotator.annotation_df["cell_type_harmonized"].isna()
             if unmapped_cell_types.any():
                 raise ValueError(
-                    f"Some cell types were not mapped: {annotator.annotation_df['cell_type'][unmapped_cell_types].unique()}"
+                    f"For sample {sample}, some cell types were not mapped: {annotator.annotation_df['cell_type'][unmapped_cell_types].unique()}"
                 )
 
     def reorder_clusters(self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name) -> None:
@@ -685,16 +678,7 @@ class CellAnnotator(BaseAnnotator):
                 new_cluster_names.append(unknown_key)
 
             original_categories = self.adata.obs[obs_key].unique()
-            if not set(original_categories) == set(new_cluster_names):
-                added_categories = set(new_cluster_names) - set(original_categories)
-                removed_categories = set(original_categories) - set(new_cluster_names)
-                if added_categories or removed_categories:
-                    error_message = f"New categories for key `{obs_key}` differ from original categories."
-                    if added_categories:
-                        error_message += f" Added categories: `{', '.join(added_categories)}`."
-                    if removed_categories:
-                        error_message += f" Removed categories: `{', '.join(removed_categories)}`."
-                    raise ValueError(error_message)
+            _validate_list_mapping(original_categories, new_cluster_names, context=obs_key)
 
             logger.info("Writing categories for key '%s'", obs_key)
             self.adata.obs[obs_key] = self.adata.obs[obs_key].cat.set_categories(new_cluster_names)
