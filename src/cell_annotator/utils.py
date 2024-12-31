@@ -1,3 +1,5 @@
+"""Package utility functions."""
+
 import re
 from collections.abc import Sequence
 
@@ -11,24 +13,17 @@ from sklearn.metrics import roc_auc_score
 
 from cell_annotator._constants import PackageConstants
 from cell_annotator._logging import logger
-from cell_annotator._response_formats import (
-    ExpectedCellTypeOutput,
-    ExpectedMarkerGeneOutput,
-    LabelOrderOutput,
-    PredictedCellTypeOutput,
-)
-
-ResponseOutput = ExpectedCellTypeOutput | ExpectedMarkerGeneOutput | PredictedCellTypeOutput | LabelOrderOutput
+from cell_annotator._response_formats import BaseOutput
 
 
 def _query_openai(
     agent_description: str,
     instruction: str,
     model: str,
-    response_format: ResponseOutput,
+    response_format: type[BaseOutput],
     other_messages: list | None = None,
     max_tokens: int | None = None,
-) -> ResponseOutput:
+) -> BaseOutput:
     client = OpenAI()
 
     if other_messages is None:
@@ -36,7 +31,7 @@ def _query_openai(
     try:
         completion = client.beta.chat.completions.parse(
             model=model,
-            messages=[{"role": "system", "content": agent_description}, {"role": "user", "content": instruction}]
+            messages=[{"role": "developer", "content": agent_description}, {"role": "user", "content": instruction}]
             + other_messages,
             response_format=response_format,
             max_tokens=max_tokens,
@@ -109,9 +104,10 @@ def _try_sorting_dict_by_keys(unsorted_dict: dict):
 
 def _format_annotation(df: pd.DataFrame, filter_by: str) -> str:
     """Format the annotation DataFrame by filtering and generating summary strings."""
-    filtered_df = df[df["cell_type"] != filter_by]
+    filtered_df = df[df["cell_type_harmonized"] != filter_by]
     return "\n".join(
-        f' - Cluster {index}: {row["marker_genes"]} -> {row["cell_type"]}' for index, row in filtered_df.iterrows()
+        f' - Cluster {index}: {row["marker_genes"]} -> {row["cell_type_harmonized"]}'
+        for index, row in filtered_df.iterrows()
     )
 
 

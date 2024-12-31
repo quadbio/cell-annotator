@@ -4,7 +4,7 @@
 class Prompts:
     """Prompts for scRNA-seq cell annotation tasks.
 
-    These were heavily inspired by https://github.com/VPetukhov/GPTCellAnnotator.
+    These were in parts heavily inspired by https://github.com/VPetukhov/GPTCellAnnotator.
     """
 
     CELL_TYPE_PROMPT = (
@@ -22,7 +22,8 @@ class Prompts:
     {expected_markers}
 
     Determine cell type and state for cluster {cluster_id} (markers {actual_markers_cluster})
-    Only output data in the following format:
+
+    ### Output format:
     ```
     - marker_gene_description: description of what the markers mean. Example: markers A,B,C are associated with X, while D is related to Y
     - cell_type: name of this cell type. If unknown, use 'Unknown'.
@@ -56,6 +57,42 @@ class Prompts:
 
     ### Output format:
     Provide the reordered cell type annotations as a list with no additional commnets.
+    ```
+    """.strip()
+
+    DUPLICATE_REMOVAL_PROMPT = """
+    You need to remove duplicates from a list of cell type annotations. The same cell type might be included multiple times in the list, for example, with different capitalization, abbreviations, or synonyms. Thus, by duplicates, we mean the same, or an extremely simlar cell type, being represented by two or more elements in the list. The goal is to ensure that each cell type is only represented once in the list. Below are the current cell type annotations, which may contain duplicates:
+
+    {list_with_duplicates}
+
+    Remove any such duplicates from the list.
+
+    ### Example:
+    If you are provided with the following list of cell type labels:
+    ["Natural killer cells", "natural killer cells", "NK cells", "Natural killer cells (NK cells) "T cells", "T-cells", "B cells", "B-cells"]
+
+    A possible de-duplicated list could be:
+    ["Natural killer cells (NK cells)", "T cells", "B cells"]
+
+    ### Output format:
+    Provide the updated cell type annotations as a list with no additional comments.
+    """.strip()
+
+    MAPPING_PROMPT = """
+    Now, you need to map cell type annotations ('cell_labels_user') to the unique set of annotations you provided earlier ('cell_labels_global'). Here is the list of cell type annotations you need to map ('cell_labels_user'):
+    {cell_type_list}
+
+    Follow these rules:
+    1. You must include all elements from the 'cell_labels_user' list exactly once.
+    2. You must map each element from the 'cell_labels_user' list to a unique element from the 'cell_labels_global' list. Be careful with capitalization, spelling, and abbreviations.
+    2. You cannot modify the names of any labels in either list. Use the labels exactly as they are provided.
+
+    Your task it to find the mapping, not to modify the labels themselves.
+
+     ### Output format:
+    ```
+    - original_name: name of the cell type as provided in 'cell_labels_user'.
+    - unique_name: name of the cell type from 'cell_labels_global' that corresponds to the original name.
     ```
     """.strip()
 

@@ -27,16 +27,23 @@ class CellTypeColorOutput(BaseOutput):
     cell_type_to_color_mapping: list[CellTypeColor] = Field(default_factory=list)
 
 
-class LabelOrderOutput(BaseOutput):
-    """Dict of cell type labels and colors."""
+class CellTypeListOutput(BaseOutput):
+    """List of cell type names."""
 
-    ordered_cell_type_list: list[str] = Field(default_factory=list)
+    cell_type_list: list[str] = Field(default_factory=list)
 
 
-class ExpectedCellTypeOutput(BaseOutput):
-    """List of cell types"""
+class CellTypeMapping(BaseOutput):
+    """Strings representing old and new cell type names."""
 
-    expected_cell_types: list[str] = Field(default_factory=list)
+    original_name: str = Field(default_factory=str)
+    unique_name: str = Field(default_factory=str)
+
+
+class CellTypeMappingOutput(BaseOutput):
+    """Dict mapping old to new cell type names."""
+
+    cell_type_mapping: list[CellTypeMapping] = Field(default_factory=list)
 
 
 class CellTypeMarkers(BaseOutput):

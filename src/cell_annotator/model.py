@@ -1,3 +1,5 @@
+"""Main model classes for the cell annotator API."""
+
 import os
 
 import numpy as np
@@ -12,14 +14,14 @@ from cell_annotator._constants import PackageConstants, PromptExamples
 from cell_annotator._logging import logger
 from cell_annotator._prompts import Prompts
 from cell_annotator._response_formats import (
+    BaseOutput,
     CellTypeColorOutput,
-    ExpectedCellTypeOutput,
+    CellTypeListOutput,
+    CellTypeMappingOutput,
     ExpectedMarkerGeneOutput,
-    LabelOrderOutput,
     PredictedCellTypeOutput,
 )
 from cell_annotator.utils import (
-    ResponseOutput,
     _filter_by_category_size,
     _format_annotation,
     _get_auc,
@@ -70,9 +72,9 @@ class BaseAnnotator:
     def _query_openai(
         self,
         instruction: str,
-        response_format: ResponseOutput,
+        response_format: type[BaseOutput],
         other_messages: list | None = None,
-    ) -> ResponseOutput:
+    ) -> BaseOutput:
         agent_description = Prompts.AGENT_DESCRIPTION.format(species=self.species)
 
         response = _query_openai(
@@ -130,7 +132,7 @@ class SampleAnnotator(BaseAnnotator):
         self.annotation_df: pd.DataFrame | None = None
         self.marker_gene_dfs: dict[str, pd.DataFrame] | None = None
         self.marker_genes: dict[str, list[str]] = {}
-        self.annotation_dict: dict[str, ResponseOutput] = {}
+        self.annotation_dict: dict[str, BaseOutput] = {}
 
         # compute the number of cells per cluster
         self.n_cells_per_cluster = _try_sorting_dict_by_keys(self.adata.obs[self.cluster_key].value_counts().to_dict())
@@ -279,7 +281,7 @@ class SampleAnnotator(BaseAnnotator):
             actual_markers_cluster = self.marker_genes[cluster]
 
             if len(actual_markers_cluster) < min_markers:
-                failure_reason = f"Too few markers provided for cluster {cluster} in sample `{self.sample_name}` ({len(actual_markers_cluster)}<{min_markers})."
+                failure_reason = f"Not enough markers provided for cluster {cluster} in sample `{self.sample_name}` ({len(actual_markers_cluster)}<{min_markers})."
                 logger.warning(failure_reason)
                 self.annotation_dict[cluster] = PredictedCellTypeOutput.default_failure(failure_reason=failure_reason)
             else:
@@ -424,11 +426,11 @@ class CellAnnotator(BaseAnnotator):
         logger.info("Querying cell types.")
         res_types = self._query_openai(
             instruction=cell_type_prompt,
-            response_format=ExpectedCellTypeOutput,
+            response_format=CellTypeListOutput,
         )
 
         logger.info("Writing expected cell types to `self.expected_cell_types`")
-        self.expected_cell_types = res_types.expected_cell_types
+        self.expected_cell_types = res_types.cell_type_list
 
         marker_gene_prompt = [
             {"role": "assistant", "content": "; ".join(self.expected_cell_types) if self.expected_cell_types else ""},
@@ -514,6 +516,9 @@ class CellAnnotator(BaseAnnotator):
         # set the annotated flag to True
         self.annotated = True
 
+        # harmonize annotations across samples
+        self._harmonize_annotations()
+
         # write the annotatation results back to self.adata
         self._update_adata_annotations(key_added=key_added)
 
@@ -529,7 +534,7 @@ class CellAnnotator(BaseAnnotator):
 
         for sample, annotator in self.sample_annotators.items():
             mask = self.adata.obs[self.sample_key] == sample
-            label_mapping = annotator.annotation_df["cell_type"].to_dict()
+            label_mapping = annotator.annotation_df["cell_type_harmonized"].to_dict()
             self.adata.obs.loc[mask, key_added] = self.adata.obs.loc[mask, self.cluster_key].map(label_mapping)
 
         self.adata.obs[key_added] = self.adata.obs[key_added].astype("category")
@@ -545,10 +550,90 @@ class CellAnnotator(BaseAnnotator):
 
         return summary_string
 
-    def _harmonize_annotations(self) -> None:
+    def _harmonize_annotations(self, unknown_key: str = PackageConstants.unknown_name) -> None:
         """Harmonize annotations across samples."""
         if not self.annotated:
             raise ValueError("No annotations found. Run `annotate_clusters` first.")
+
+        # Step 1: get a list of all unique cell types
+        cell_types = set()
+        for annotator in self.sample_annotators.values():
+            categories = annotator.annotation_df["cell_type"].unique()
+            cell_types.update(cat for cat in categories if cat != unknown_key)
+
+        deduplication_prompt = Prompts.DUPLICATE_REMOVAL_PROMPT.format(list_with_duplicates=", ".join(cell_types))
+
+        # query openai
+        logger.info("Querying cell-type label de-duplication.")
+        response = self._query_openai(
+            instruction=deduplication_prompt,
+            response_format=CellTypeListOutput,
+        )
+        global_cell_type_list = response.cell_type_list
+        logger.info("Removed %s/%s cell types.", len(cell_types) - len(global_cell_type_list), len(cell_types))
+
+        # Step 2: map cell types to harmonized names for each sample annotator
+        logger.info("Iterating over samples to harmonize cell type annotations.")
+        for annotator in tqdm(self.sample_annotators.values()):
+            local_cell_types = [cat for cat in annotator.annotation_df["cell_type"].unique() if cat != unknown_key]
+
+            mapping_prompt = [
+                {"role": "assistant", "content": "; ".join(global_cell_type_list)},
+                {
+                    "role": "user",
+                    "content": Prompts.MAPPING_PROMPT.format(
+                        cell_type_list=", ".join(local_cell_types),
+                    ),
+                },
+            ]
+
+            response = self._query_openai(
+                instruction=deduplication_prompt,
+                other_messages=mapping_prompt,
+                response_format=CellTypeMappingOutput,
+            )
+
+            # Convert to dictionary
+            cell_type_mapping_dict = {
+                mapping.original_name: mapping.unique_name for mapping in response.cell_type_mapping
+            }
+
+            # validate keys and values in the mapping
+            if not set(local_cell_types) == set(cell_type_mapping_dict.keys()):
+                added_categories = set(cell_type_mapping_dict.keys()) - set(local_cell_types)
+                removed_categories = set(local_cell_types) - set(cell_type_mapping_dict.keys())
+                if added_categories or removed_categories:
+                    error_message = "New categories differ from original categories."
+                    if added_categories:
+                        error_message += f" Added categories: {', '.join(added_categories)}."
+                    if removed_categories:
+                        error_message += f" Removed categories: {', '.join(removed_categories)}."
+                    raise ValueError(error_message)
+
+            # Check if all values in cell_type_mapping_dict are in the global_cell_type_set
+            missing_cell_types = [
+                value for value in cell_type_mapping_dict.values() if value not in global_cell_type_list
+            ]
+
+            if missing_cell_types:
+                raise ValueError(f"Some cell types were not found in the global list: {missing_cell_types}")
+
+            # Re-add the unkonwn category if it was present originally
+            original_categories = annotator.annotation_df["cell_type"].unique()
+            if unknown_key in original_categories:
+                cell_type_mapping_dict[unknown_key] = unknown_key
+
+            # Introduce a new column "cell_type_harmonized" in annotator.annotation_df
+            annotator.annotation_df["cell_type_harmonized"] = annotator.annotation_df["cell_type"].map(
+                cell_type_mapping_dict
+            )
+
+            # Check for any unmapped cell types and raise an error if found
+            unmapped_cell_types = annotator.annotation_df["cell_type_harmonized"].isna()
+            if unmapped_cell_types.any():
+                raise ValueError(
+                    f"Some cell types were not mapped: {annotator.annotation_df['cell_type'][unmapped_cell_types].unique()}"
+                )
 
     def reorder_clusters(self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name) -> None:
         """Assign consistent ordering across cell type annotations.
@@ -586,9 +671,9 @@ class CellAnnotator(BaseAnnotator):
         logger.info("Querying label ordering.")
         response = self._query_openai(
             instruction=order_prompt,
-            response_format=LabelOrderOutput,
+            response_format=CellTypeListOutput,
         )
-        label_sets = _get_consistent_ordering(self.adata, response.ordered_cell_type_list, keys)
+        label_sets = _get_consistent_ordering(self.adata, response.cell_type_list, keys)
 
         # Re-add the unknown category, make sure that we retained all categories, and write to adata
         for obs_key, new_cluster_names in label_sets.items():
