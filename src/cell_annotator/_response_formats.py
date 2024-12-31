@@ -56,7 +56,7 @@ class PredictedCellTypeOutput(BaseOutput):
     """Cell type annotation results."""
 
     marker_gene_description: str = Field(default_factory=lambda: "Unknown")
-    cell_type_annotation: str = Field(default_factory=lambda: "Unknown")
-    cell_state_annotation: str = Field(default_factory=lambda: "Unknown")
+    cell_type: str = Field(default_factory=lambda: "Unknown")
+    cell_state: str = Field(default_factory=lambda: "Unknown")
     annotation_confidence: str = Field(default_factory=lambda: "Unknown")
     reason_for_confidence_estimate: str = Field(default_factory=lambda: "Unknown")

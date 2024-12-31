@@ -354,6 +354,7 @@ class CellAnnotator(BaseAnnotator):
         self.sample_annotators: dict[str, SampleAnnotator] = {}
         self.expected_cell_types: list[str] = []
         self.expected_marker_genes: dict[str, list[str]] | None = None
+        self.annotated: bool = False
 
         # laod environmental variables
         load_dotenv()
@@ -510,6 +511,9 @@ class CellAnnotator(BaseAnnotator):
         for annotator in tqdm(self.sample_annotators.values()):
             annotator.annotate_clusters(min_markers=min_markers, expected_marker_genes=self.expected_marker_genes)
 
+        # set the annotated flag to True
+        self.annotated = True
+
         # write the annotatation results back to self.adata
         self._update_adata_annotations(key_added=key_added)
 
@@ -517,19 +521,22 @@ class CellAnnotator(BaseAnnotator):
 
     def _update_adata_annotations(self, key_added: str) -> None:
         """Update cluster labels in adata object."""
+        if not self.annotated:
+            raise ValueError("No annotations found. Run `annotate_clusters` first.")
+
         logger.info("Writing updated cluster labels to `adata.obs[`%s'].", key_added)
         self.adata.obs[key_added] = None
 
         for sample, annotator in self.sample_annotators.items():
             mask = self.adata.obs[self.sample_key] == sample
-            label_mapping = annotator.annotation_df["cell_type_annotation"].to_dict()
+            label_mapping = annotator.annotation_df["cell_type"].to_dict()
             self.adata.obs.loc[mask, key_added] = self.adata.obs.loc[mask, self.cluster_key].map(label_mapping)
 
         self.adata.obs[key_added] = self.adata.obs[key_added].astype("category")
 
     def _get_annotation_summary_string(self, filter_by: str = "") -> str:
-        if not self.sample_annotators:
-            raise ValueError("No SampleAnnotators found. Run `annotate_clusters` first.")
+        if not self.annotated:
+            raise ValueError("No annotations found. Run `annotate_clusters` first.")
 
         summary_string = "\n\n".join(
             f"Sample: {key}\n{_format_annotation(annotator.annotation_df, filter_by)}"
@@ -537,6 +544,11 @@ class CellAnnotator(BaseAnnotator):
         )
 
         return summary_string
+
+    def _harmonize_annotations(self) -> None:
+        """Harmonize annotations across samples."""
+        if not self.annotated:
+            raise ValueError("No annotations found. Run `annotate_clusters` first.")
 
     def reorder_clusters(self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name) -> None:
         """Assign consistent ordering across cell type annotations.
