@@ -102,9 +102,9 @@ def _try_sorting_dict_by_keys(unsorted_dict: dict):
     return sorted_dict
 
 
-def _format_annotation(df: pd.DataFrame, filter_by: str) -> str:
+def _format_annotation(df: pd.DataFrame, filter_by: str, cell_type_key: str) -> str:
     """Format the annotation DataFrame by filtering and generating summary strings."""
-    filtered_df = df[df["cell_type_harmonized"] != filter_by]
+    filtered_df = df[df[cell_type_key] != filter_by]
     return "\n".join(
         f' - Cluster {index}: {row["marker_genes"]} -> {row["cell_type_harmonized"]}'
         for index, row in filtered_df.iterrows()
@@ -237,7 +237,7 @@ def _get_consistent_ordering(adata: sc.AnnData, global_order: list[str], keys: l
     return consistent_label_sets
 
 
-def validate_list_mapping(list_a: list[str], list_b: list[str], context: str | None = None) -> None:
+def _validate_list_mapping(list_a: list[str], list_b: list[str], context: str | None = None) -> None:
     """
     Validate that the elements in list_b match the elements in list_a.
 

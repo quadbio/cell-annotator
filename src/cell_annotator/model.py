@@ -358,6 +358,7 @@ class CellAnnotator(BaseAnnotator):
         self.expected_cell_types: list[str] = []
         self.expected_marker_genes: dict[str, list[str]] | None = None
         self.annotated: bool = False
+        self.cell_type_key: str | None = None
 
         # laod environmental variables
         load_dotenv()
@@ -518,7 +519,12 @@ class CellAnnotator(BaseAnnotator):
         self.annotated = True
 
         # harmonize annotations across samples
-        self._harmonize_annotations()
+        try:
+            self._harmonize_annotations()
+            self.cell_type_key = "cell_type_harmonized"
+        except ValueError as e:
+            logger.warning("Error during annotation harmonization: %s. Skipping.", e)
+            self.cell_type_key = "cell_type"
 
         # write the annotatation results back to self.adata
         self._update_adata_annotations(key_added=key_added)
@@ -535,7 +541,7 @@ class CellAnnotator(BaseAnnotator):
 
         for sample, annotator in self.sample_annotators.items():
             mask = self.adata.obs[self.sample_key] == sample
-            label_mapping = annotator.annotation_df["cell_type_harmonized"].to_dict()
+            label_mapping = annotator.annotation_df[self.cell_type_key].to_dict()
             self.adata.obs.loc[mask, key_added] = self.adata.obs.loc[mask, self.cluster_key].map(label_mapping)
 
         self.adata.obs[key_added] = self.adata.obs[key_added].astype("category")
@@ -545,7 +551,7 @@ class CellAnnotator(BaseAnnotator):
             raise ValueError("No annotations found. Run `annotate_clusters` first.")
 
         summary_string = "\n\n".join(
-            f"Sample: {key}\n{_format_annotation(annotator.annotation_df, filter_by)}"
+            f"Sample: {key}\n{_format_annotation(annotator.annotation_df, filter_by, self.cell_type_key)}"
             for key, annotator in self.sample_annotators.items()
         )
 
