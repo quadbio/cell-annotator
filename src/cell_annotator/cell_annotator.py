@@ -1,12 +1,9 @@
-"""Main model classes for the cell annotator API."""
+"""Cell annotator class for annotating cell types across multiple samples."""
 
 import os
 
-import numpy as np
-import pandas as pd
 import scanpy as sc
 from dotenv import load_dotenv
-from pandas import DataFrame
 from scanpy.tools._rank_genes_groups import _Method
 from tqdm.auto import tqdm
 
@@ -14,308 +11,20 @@ from cell_annotator._constants import PackageConstants, PromptExamples
 from cell_annotator._logging import logger
 from cell_annotator._prompts import Prompts
 from cell_annotator._response_formats import (
-    BaseOutput,
     CellTypeColorOutput,
     CellTypeListOutput,
     CellTypeMappingOutput,
     ExpectedMarkerGeneOutput,
-    PredictedCellTypeOutput,
 )
+from cell_annotator.base_annotator import BaseAnnotator
+from cell_annotator.sample_annotator import SampleAnnotator
 from cell_annotator.utils import (
-    _filter_by_category_size,
     _format_annotation,
-    _get_auc,
     _get_consistent_ordering,
-    _get_specificity,
     _get_unique_cell_types,
-    _query_openai,
     _try_sorting_dict_by_keys,
     _validate_list_mapping,
 )
-
-
-class BaseAnnotator:
-    """
-    Shared base class for annotation-related functionality.
-
-    Parameters
-    ----------
-    species : str
-        Species name.
-    tissue : str
-        Tissue name.
-    stage : str, optional
-        Developmental stage. Default is 'adult'.
-    cluster_key : str, optional
-        Key of the cluster column in adata.obs. Default is 'leiden'.
-    model : str, optional
-        OpenAI model name. Default is 'gpt-4o-mini'.
-    max_tokens : int, optional
-        Maximum number of tokens the model is allowed to use.
-    """
-
-    def __init__(
-        self,
-        species: str,
-        tissue: str,
-        stage: str = "adult",
-        cluster_key: str = "leiden",
-        model: str = "gpt-4o-mini",
-        max_tokens: int | None = None,
-    ):
-        self.species = species
-        self.tissue = tissue
-        self.stage = stage
-        self.cluster_key = cluster_key
-        self.model = model
-        self.max_tokens = max_tokens
-
-    def _query_openai(
-        self,
-        instruction: str,
-        response_format: type[BaseOutput],
-        other_messages: list | None = None,
-    ) -> BaseOutput:
-        agent_description = Prompts.AGENT_DESCRIPTION.format(species=self.species)
-
-        response = _query_openai(
-            agent_description=agent_description,
-            instruction=instruction,
-            model=self.model,
-            response_format=response_format,
-            other_messages=other_messages,
-            max_tokens=self.max_tokens,
-        )
-
-        return response
-
-
-class SampleAnnotator(BaseAnnotator):
-    """
-    Handles annotation for a single batch/sample.
-
-    Parameters
-    ----------
-    adata : sc.AnnData
-        Subset of the main AnnData object corresponding to a single batch.
-    species : str
-        Species name (inherited from BaseAnnotator).
-    tissue : str
-        Tissue name (inherited from BaseAnnotator).
-    stage : str, optional
-        Developmental stage (inherited from BaseAnnotator).
-    expected_marker_genes : dict[str, list[str]], optional
-        Precomputed dict, mapping expected cell types to marker genes.
-    cluster_key : str, optional
-        Key of the cluster column in adata.obs (inherited from BaseAnnotator).
-    model : str, optional
-        OpenAI model name (inherited from BaseAnnotator).
-    max_tokens : int, optional
-        Maximum number of tokens the model is allowed to use.
-
-    """
-
-    def __init__(
-        self,
-        adata: sc.AnnData,
-        sample_name: str,
-        species: str,
-        tissue: str,
-        stage: str = "adult",
-        cluster_key: str = "leiden",
-        model: str = "gpt-4o-mini",
-        max_tokens: int | None = None,
-    ):
-        super().__init__(species, tissue, stage, cluster_key, model, max_tokens)
-        self.adata = adata
-        self.sample_name = sample_name
-
-        self.annotation_df: pd.DataFrame | None = None
-        self.marker_gene_dfs: dict[str, pd.DataFrame] | None = None
-        self.marker_genes: dict[str, list[str]] = {}
-        self.annotation_dict: dict[str, BaseOutput] = {}
-
-        # compute the number of cells per cluster
-        self.n_cells_per_cluster = _try_sorting_dict_by_keys(self.adata.obs[self.cluster_key].value_counts().to_dict())
-
-    def __repr__(self):
-        return f"SampleAnnotator(sample_name={self.sample_name!r}, n_clusters={self.adata.obs[self.cluster_key].nunique()}, n_cells={self.adata.n_obs:,})"
-
-    def get_cluster_markers(
-        self,
-        method: _Method | None = "wilcoxon",
-        min_cells_per_cluster: int = 3,
-        min_specificity: float = 0.75,
-        min_auc: float = 0.7,
-        max_markers: int = 7,
-        use_raw: bool = PackageConstants.use_raw,
-    ) -> None:
-        """Get marker genes per cluster
-
-        Parameters
-        ----------
-        method : str
-            Method for `sc.tl.rank_genes_groups`
-        min_cells_per_cluster : int
-            Include only clusters with at least this many cells.
-        min_specificity : float
-            Minimum specificity
-        min_auc : float
-            Minimum AUC
-        max_markers : int
-            Maximum number of markers
-        use_raw : bool
-            Use raw data
-
-        Returns
-        -------
-        Nothing, sets `self.marker_dfs` and `self.marker_genes`.
-
-        """
-        # filter out very small clusters
-        self._filter_clusters_by_cell_number(min_cells_per_cluster)
-
-        logger.debug("Computing marker genes per cluster using method `%s`.", method)
-        sc.tl.rank_genes_groups(
-            self.adata, groupby=self.cluster_key, method=method, use_raw=use_raw, n_genes=PackageConstants.max_markers
-        )
-
-        marker_dfs = {}
-        logger.debug("Iterating over clusters to compute specificity and AUC values.")
-        for cli in self.adata.obs[self.cluster_key].unique():
-            logger.debug("Computing specificity for cluster %s", cli)
-
-            # get a list of differentially expressed genes
-            genes = np.array(self.adata.uns["rank_genes_groups"]["names"][cli])
-
-            # compute their specificity
-            clust_mask = self.adata.obs[self.cluster_key] == cli
-            specificity = _get_specificity(genes=genes, clust_mask=clust_mask, adata=self.adata, use_raw=use_raw)
-
-            # filter genes by specificity
-            mask = specificity >= min(min_specificity, sorted(specificity)[-PackageConstants.min_markers])
-            genes, specificity = genes[mask], specificity[mask]
-
-            # compute AUCs
-            logger.debug("Computing AUC for cluster %s", cli)
-            auc = _get_auc(genes=genes, clust_mask=clust_mask, adata=self.adata, use_raw=use_raw)
-            marker_dfs[cli] = DataFrame({"gene": genes, "specificity": specificity, "auc": auc})
-
-        logger.debug(
-            "Writing marker gene DataFrames to `self.sample_annotators['%s'].marker_gene_dfs`.", self.sample_name
-        )
-        self.marker_gene_dfs = marker_dfs
-
-        # filter to the top markers
-        logger.debug("Writing top marker genes to `self.sample_annotators['%s'].marker_genes`.", self.sample_name)
-        self.marker_genes = self._filter_cluster_markers(min_auc=min_auc, max_markers=max_markers)
-
-    def _filter_clusters_by_cell_number(self, min_cells_per_cluster: int) -> None:
-        removed_info = _filter_by_category_size(self.adata, column=self.cluster_key, min_size=min_cells_per_cluster)
-        if removed_info:
-            for cat, size in removed_info.items():
-                failure_reason = f"Not enough cells for cluster {cat} in sample `{self.sample_name}` ({size}<{min_cells_per_cluster})."
-                logger.warning(failure_reason)
-                self.annotation_dict[cat] = PredictedCellTypeOutput.default_failure(failure_reason=failure_reason)
-
-    def _filter_cluster_markers(self, min_auc: float, max_markers: int) -> dict[str, list[str]]:
-        """Get top markers
-
-        Parameters
-        ----------
-        min_auc : float
-            Minimum AUC
-        max_markers : int
-            Maximum number of markers
-
-        Returns
-        -------
-        dict[str, list[str]]
-            Top marker genes per cluster.
-
-        """
-        if self.marker_gene_dfs is None:
-            raise ValueError("Run `get_markers` first to compute marker genes per cluster.")
-
-        marker_genes = {}
-        for cluster, df in self.marker_gene_dfs.items():
-            top_genes = df[df.auc > min_auc].sort_values("auc", ascending=False).head(max_markers).gene.values
-            marker_genes[cluster] = list(top_genes)
-
-        return _try_sorting_dict_by_keys(marker_genes)
-
-    def annotate_clusters(self, min_markers: int, expected_marker_genes: dict[str, list[str]] | None) -> None:
-        """Annotate clusters based on marker genes.
-
-        Parameters
-        ----------
-        max_tokens : int
-            Maximum number of tokens for OpenAI API.
-        min_markers : int
-            Minimum number of requires marker genes per cluster.
-        expected_marker_genes :
-
-        Returns
-        -------
-        Nothing, writes annotation results to `self.annotation_df`.
-
-        """
-        if not self.marker_genes:
-            logger.debug(
-                "Computing cluster marker genes using default parameters. Run `get_cluster_markers` for more control. "
-            )
-            self.get_cluster_markers()
-
-        # parse expected markers into a string
-        if expected_marker_genes:
-            expected_markers_string = "\n".join(
-                [f"{cell_type}: {', '.join(genes)}" for cell_type, genes in expected_marker_genes.items()]
-            )
-        else:
-            expected_markers_string = ""
-
-        actual_markers_all = "\n".join([f'- Cluster {i}: {", ".join(gs)}' for i, gs in self.marker_genes.items()])
-
-        # loop over clusters to annotate
-        logger.debug("Iterating over clusters to annotate.")
-        for cluster in self.marker_genes:
-            actual_markers_cluster = self.marker_genes[cluster]
-
-            if len(actual_markers_cluster) < min_markers:
-                failure_reason = f"Not enough markers provided for cluster {cluster} in sample `{self.sample_name}` ({len(actual_markers_cluster)}<{min_markers})."
-                logger.warning(failure_reason)
-                self.annotation_dict[cluster] = PredictedCellTypeOutput.default_failure(failure_reason=failure_reason)
-            else:
-                actual_markers_cluster_string = ", ".join(actual_markers_cluster)
-
-                # fill in the annotation prompt
-                annotation_prompt = Prompts.ANNOTATION_PROMPT.format(
-                    species=self.species,
-                    tissue=self.tissue,
-                    stage=self.stage,
-                    actual_markers_all=actual_markers_all,
-                    cluster_id=cluster,
-                    actual_markers_cluster=actual_markers_cluster_string,
-                    expected_markers=expected_markers_string,
-                )
-
-                self.annotation_dict[cluster] = self._query_openai(
-                    instruction=annotation_prompt,
-                    response_format=PredictedCellTypeOutput,
-                )
-
-        logger.debug("Writing annotation results to `self.sample_annotators['%s'].annotation_df`.", self.sample_name)
-        self.annotation_df = DataFrame.from_dict(
-            {k: v.model_dump() for k, v in _try_sorting_dict_by_keys(self.annotation_dict).items()}, orient="index"
-        )
-
-        # add the marker genes we used
-        self.annotation_df.insert(
-            0, "marker_genes", {key: ", ".join(value) for key, value in self.marker_genes.items()}
-        )
-
-        # add the number of cells per cluster
-        self.annotation_df.insert(0, "n_cells", self.n_cells_per_cluster)
 
 
 class CellAnnotator(BaseAnnotator):
@@ -324,19 +33,19 @@ class CellAnnotator(BaseAnnotator):
 
     Parameters
     ----------
-    adata : sc.AnnData
+    adata
         Full AnnData object with multiple samples.
-    sample_key : str
+    sample_key
         Key in `adata.obs` indicating batch membership.
-    species : str
+    species
         Species name (inherited from BaseAnnotator).
-    tissue : str
+    tissue
         Tissue name (inherited from BaseAnnotator).
-    stage : str, optional
+    stage
         Developmental stage (inherited from BaseAnnotator).
-    cluster_key : str, optional
-        Key of the cluster column in adata.obs. Default is 'leiden'.
-    model : str, optional
+    cluster_key
+        Key of the cluster column in adata.obs.
+    model
         OpenAI model name (inherited from BaseAnnotator).
     """
 
@@ -416,17 +125,19 @@ class CellAnnotator(BaseAnnotator):
 
         Parameters
         ----------
-        n_markers : int
+        n_markers
             Number of marker genes per cell type.
 
         Returns
         -------
-        Nothing, sets `self.expected_cell_types` and `self.expected_marker_genes`.
+        Updates the following attributes:
+        - `self.expected_cell_types`
+        - `self.expected_marker_genes`
         """
         cell_type_prompt = Prompts.CELL_TYPE_PROMPT.format(species=self.species, tissue=self.tissue, stage=self.stage)
 
         logger.info("Querying cell types.")
-        res_types = self._query_openai(
+        res_types = self.query_openai(
             instruction=cell_type_prompt,
             response_format=CellTypeListOutput,
         )
@@ -440,7 +151,7 @@ class CellAnnotator(BaseAnnotator):
         ]
 
         logger.info("Querying cell type markers.")
-        res_markers = self._query_openai(
+        res_markers = self.query_openai(
             instruction=cell_type_prompt,
             other_messages=marker_gene_prompt,
             response_format=ExpectedMarkerGeneOutput,
@@ -464,20 +175,22 @@ class CellAnnotator(BaseAnnotator):
 
         Parameters
         ----------
-        method : str
+        method
             Method for `sc.tl.rank_genes_groups`
-        min_specificity : float
+        min_specificity
             Minimum specificity
-        min_auc : float
+        min_auc
             Minimum AUC
-        max_markers : int
+        max_markers
             Maximum number of markers
-        use_raw : bool
+        use_raw
             Use raw data
 
         Returns
         -------
-        Nothing, sets `self.marker_dfs`.
+        Updates the following attributes:
+        - `self.marker_dfs`
+        - `self.marker_genes`
 
         """
         logger.info("Iterating over samples to compute cluster marker genes. ")
@@ -495,14 +208,18 @@ class CellAnnotator(BaseAnnotator):
 
         Parameters
         ----------
-        min_markers: int, optional
+        min_markers
             Minimal number of required marker genes per cluster.
-        key_added: str, optional
+        key_added
             Name of the key in .obs where updated annotations will be written
 
         Returns
         -------
-        Nothing, writes annotation results to `self.annotation_df` and annotations to `self.adata.obs[key_added]`
+        Updates the following attributes:
+        - `self.annotation_df`
+        - `self.adata.obs[key_added]`
+        - `self.annotated`
+        - `self.cell_type_key`
 
         """
         if self.expected_marker_genes is None:
@@ -572,7 +289,7 @@ class CellAnnotator(BaseAnnotator):
 
         # query openai
         logger.info("Querying cell-type label de-duplication.")
-        response = self._query_openai(
+        response = self.query_openai(
             instruction=deduplication_prompt,
             response_format=CellTypeListOutput,
         )
@@ -594,7 +311,7 @@ class CellAnnotator(BaseAnnotator):
                 },
             ]
 
-            response = self._query_openai(
+            response = self.query_openai(
                 instruction=deduplication_prompt,
                 other_messages=mapping_prompt,
                 response_format=CellTypeMappingOutput,
@@ -642,14 +359,15 @@ class CellAnnotator(BaseAnnotator):
 
         Parameters
         ----------
-        keys : list[str] | str
+        keys
             List of keys in `adata.obs` to reorder.
-        unknown_key : str, optional
-            Name of the unknown category. Default is 'Unknown'.
+        unknown_key
+            Name of the unknown category.
 
         Returns
         -------
-        Nothing, updates `adata.obs` with reordered categories. Underscores will be replaced with spaces.
+        Updated the following attributes:
+        - `self.adata.obs[keys]`
         """
         if isinstance(keys, str):
             keys = [keys]
@@ -668,7 +386,7 @@ class CellAnnotator(BaseAnnotator):
 
         # query openai and format the response as a dict
         logger.info("Querying label ordering.")
-        response = self._query_openai(
+        response = self.query_openai(
             instruction=order_prompt,
             response_format=CellTypeListOutput,
         )
@@ -694,14 +412,15 @@ class CellAnnotator(BaseAnnotator):
 
         Parameters
         ----------
-        keys : list[str] | str
-            List of keys in `adata.obs` to query colors for.
-        unknown_key : str
+        keys
+            Keys in `adata.obs` to query colors for.
+        unknown_key
             Name of the unknown category.
 
         Returns
         -------
-        Nothing, updates `adata.uns` with cluster colors.
+        Updates the following attributes:
+        - `self.adata.uns[f"{keys}_colors"]`
 
         """
         if isinstance(keys, str):
@@ -713,7 +432,7 @@ class CellAnnotator(BaseAnnotator):
             cluster_names = ", ".join(cl for cl in self.adata.obs[key].cat.categories if cl != unknown_key)
             color_prompt = Prompts.COLOR_PROMPT.format(cluster_names=cluster_names)
 
-            response = self._query_openai(instruction=color_prompt, response_format=CellTypeColorOutput)
+            response = self.query_openai(instruction=color_prompt, response_format=CellTypeColorOutput)
             color_dict = {
                 item.original_cell_type_label: item.assigned_color for item in response.cell_type_to_color_mapping
             }
