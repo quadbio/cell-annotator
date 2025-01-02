@@ -24,6 +24,28 @@ def _query_openai(
     other_messages: list | None = None,
     max_tokens: int | None = None,
 ) -> BaseOutput:
+    """
+    Query the OpenAI API with the given agent description and instruction.
+
+    Parameters
+    ----------
+    agent_description
+        Description of the agent.
+    instruction
+        Instruction for the agent.
+    model
+        Model to use for the query. Examples: 'gpt-4o-mini', 'gpt-4o'.
+    response_format
+        Response format class to use for parsing the response.
+    other_messages
+        Additional messages to include in the query.
+    max_tokens
+        Maximum number of tokens to use for the query.
+
+    Returns
+    -------
+    Parsed response from the OpenAI API.
+    """
     client = OpenAI()
 
     if other_messages is None:
@@ -60,8 +82,26 @@ def _query_openai(
 
 
 def _get_specificity(
-    genes: np.ndarray | Sequence[str], clust_mask: np.ndarray, adata: sc.AnnData, use_raw: bool = True
-):
+    genes: np.ndarray | list[str], clust_mask: np.ndarray, adata: sc.AnnData, use_raw: bool = True
+) -> np.ndarray:
+    """
+    Calculate the specificity of the given genes for the given cluster mask.
+
+    Parameters
+    ----------
+    genes
+        Genes to calculate the specificity for.
+    clust_mask
+        Boolean mask for the cluster.
+    adata
+        AnnData object containing the expression data.
+    use_raw
+        Whether to use the raw data in the AnnData object.
+
+    Returns
+    -------
+    Specificity values for the given genes.
+    """
     if use_raw:
         values = adata.raw[:, genes].X
     else:
@@ -119,16 +159,16 @@ def _filter_by_category_size(adata: sc.AnnData, column: str, min_size: int) -> d
 
     Parameters
     ----------
-    adata : sc.AnnData
+    adata
         AnnData object with the column to modify.
-    column : str
+    column
         Name of the categorical column in `adata.obs`.
-    min_size : int
+    min_size
         Minimum number of elements a category must have to remain unchanged.
 
     Returns
     -------
-    removed_info : dict
+    removed_info
         Information about the removed categories, including category names and their sizes.
     """
     # Count the size of each category
@@ -202,17 +242,16 @@ def _get_unique_cell_types(
 
     Parameters
     ----------
-    adata : AnnData
+    adata
         The annotated data matrix.
-    keys : list of str
+    keys
         List of .obs keys pointing to categorical adata.obs annotations.
-    unknown_key : str, optional
+    unknown_key
         The label to exclude from the list, by default "unknown".
 
     Returns
     -------
-    list of str
-        List of unique cell type names.
+    List of unique cell type names.
     """
     unique_cell_types = set()
     if isinstance(keys, str):
@@ -245,9 +284,9 @@ def _validate_list_mapping(list_a: list[str], list_b: list[str], context: str | 
 
     Parameters
     ----------
-    list_a : List[str]
+    list_a
         The original list of elements.
-    list_b : List[str]
+    list_b
         The list of elements after mapping.
     """
     set_a = set(list_a)
