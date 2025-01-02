@@ -385,7 +385,7 @@ class CellAnnotator(BaseAnnotator):
 
         Returns
         -------
-        Updated the following attributes:
+        Updates the following attributes:
         - `self.adata.obs[keys]`
         """
         if isinstance(keys, str):
@@ -395,27 +395,14 @@ class CellAnnotator(BaseAnnotator):
         for key in keys:
             self.adata.obs[key] = self.adata.obs[key].map(lambda x: x.replace("_", " "))
 
-        # format the current annotations sets as a string and prepare the query prompt
-        unique_cell_types = _get_unique_cell_types(self.adata, keys, unknown_key)
-        order_prompt = Prompts.ORDER_PROMPT.format(
-            unique_cell_types=", ".join(unique_cell_types),
-            example_unordered=PromptExamples.unordered_cell_types,
-            example_ordered=PromptExamples.ordered_cell_types,
-        )
+        # Take the union of all cell types across keys and re-order the list
+        cell_type_list = self._get_cluster_ordering(keys, unknown_key=unknown_key)
 
-        # query openai and format the response as a dict
-        logger.info("Querying label ordering.")
-        response = self.query_openai(
-            instruction=order_prompt,
-            response_format=CellTypeListOutput,
-        )
-
+        # assign meaningful colors to the reordered list of cell types
         if assign_colors:
-            global_names_and_colors = self._get_cluster_colors(
-                clusters=response.cell_type_list, unknown_key=unknown_key
-            )
+            global_names_and_colors = self._get_cluster_colors(clusters=cell_type_list, unknown_key=unknown_key)
         else:
-            global_names_and_colors = {cell_type: "" for cell_type in response.cell_type_list}
+            global_names_and_colors = {cell_type: "" for cell_type in cell_type_list}
 
         label_sets = _get_consistent_ordering(self.adata, global_names_and_colors, keys)
 
@@ -434,6 +421,37 @@ class CellAnnotator(BaseAnnotator):
             self.adata.obs[obs_key] = self.adata.obs[obs_key].cat.set_categories(list(name_and_color.keys()))
             if assign_colors:
                 self.adata.uns[f"{obs_key}_colors"] = name_and_color.values()
+
+    def _get_cluster_ordering(self, keys: list[str], unknown_key: str = PackageConstants.unknown_name) -> list[str]:
+        """Query OpenAI for relational cluster ordering.
+
+        Parameters
+        ----------
+        keys
+            List of keys in `adata.obs` whose categories should be ordered.
+        unknown_key
+            Name of the unknown category.
+
+        Returns
+        -------
+        List of cell types in some biologically meaningful order.
+        """
+        # format the current annotations sets as a string and prepare the query prompt
+        unique_cell_types = _get_unique_cell_types(self.adata, keys, unknown_key)
+        order_prompt = Prompts.ORDER_PROMPT.format(
+            unique_cell_types=", ".join(unique_cell_types),
+            example_unordered=PromptExamples.unordered_cell_types,
+            example_ordered=PromptExamples.ordered_cell_types,
+        )
+
+        # query openai and format the response as a dict
+        logger.info("Querying label ordering.")
+        response = self.query_openai(
+            instruction=order_prompt,
+            response_format=CellTypeListOutput,
+        )
+
+        return response.cell_type_list
 
     def _get_cluster_colors(
         self, clusters: str | list[str], unknown_key: str = PackageConstants.unknown_name
