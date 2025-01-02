@@ -225,7 +225,9 @@ def _get_unique_cell_types(
     return list(unique_cell_types)
 
 
-def _get_consistent_ordering(adata: sc.AnnData, global_order: list[str], keys: list[str] | str):
+def _get_consistent_ordering(
+    adata: sc.AnnData, global_names_and_colors: dict[str, str], keys: list[str] | str
+) -> dict[str, dict[str, str]]:
     consistent_label_sets = {}
 
     if isinstance(keys, str):
@@ -233,7 +235,7 @@ def _get_consistent_ordering(adata: sc.AnnData, global_order: list[str], keys: l
 
     for key in keys:
         labels = adata.obs[key].unique()
-        consistent_label_sets[key] = [label for label in global_order if label in labels]
+        consistent_label_sets[key] = {name: color for name, color in global_names_and_colors.items() if name in labels}
     return consistent_label_sets
 
 

@@ -97,7 +97,7 @@ class Prompts:
     """.strip()
 
     COLOR_PROMPT = """
-    You are tasked with assigning meaningful colors to cell type labels. Below are cell type annotations, already reordered in a biologically meaningful manner:
+    You are tasked with assigning meaningful colors to cell type labels. Below are the cell type annotations you need to assign colors to:
 
     {cluster_names}
 

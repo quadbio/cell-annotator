@@ -68,6 +68,7 @@ class CellAnnotator(BaseAnnotator):
         self.expected_marker_genes: dict[str, list[str]] | None = None
         self.annotated: bool = False
         self.cell_type_key: str | None = None
+        self.global_cell_type_list: list[str] | None = None
 
         # laod environmental variables
         load_dotenv()
@@ -275,7 +276,20 @@ class CellAnnotator(BaseAnnotator):
         return summary_string
 
     def _harmonize_annotations(self, unknown_key: str = PackageConstants.unknown_name) -> None:
-        """Harmonize annotations across samples."""
+        """Harmonize annotations across samples.
+
+        Parameters
+        ----------
+        unknown_key
+            Name of the unknown category.
+
+        Returns
+        -------
+        Updates the following attributes:
+        - `self.global_cell_type_list`
+        - `self.sample_annotators[sample].annotation_df['cell_type_harmonized']`
+
+        """
         if not self.annotated:
             raise ValueError("No annotations found. Run `annotate_clusters` first.")
 
@@ -293,8 +307,8 @@ class CellAnnotator(BaseAnnotator):
             instruction=deduplication_prompt,
             response_format=CellTypeListOutput,
         )
-        global_cell_type_list = response.cell_type_list
-        logger.info("Removed %s/%s cell types.", len(cell_types) - len(global_cell_type_list), len(cell_types))
+        self.global_cell_type_list = response.cell_type_list
+        logger.info("Removed %s/%s cell types.", len(cell_types) - len(self.global_cell_type_list), len(cell_types))
 
         # Step 2: map cell types to harmonized names for each sample annotator
         logger.info("Iterating over samples to harmonize cell type annotations.")
@@ -302,7 +316,7 @@ class CellAnnotator(BaseAnnotator):
             local_cell_types = [cat for cat in annotator.annotation_df["cell_type"].unique() if cat != unknown_key]
 
             mapping_prompt = [
-                {"role": "assistant", "content": "; ".join(global_cell_type_list)},
+                {"role": "assistant", "content": "; ".join(self.global_cell_type_list)},
                 {
                     "role": "user",
                     "content": Prompts.MAPPING_PROMPT.format(
@@ -327,11 +341,11 @@ class CellAnnotator(BaseAnnotator):
 
             # Check if all values in cell_type_mapping_dict are in the global_cell_type_set
             missing_cell_types = [
-                value for value in cell_type_mapping_dict.values() if value not in global_cell_type_list
+                value for value in cell_type_mapping_dict.values() if value not in self.global_cell_type_list
             ]
             if missing_cell_types:
                 raise ValueError(
-                    f"For sample {sample}, some cell types were not found in the global list: {missing_cell_types}"
+                    f"For sample `{sample}`, some cell types were not found in the global list: {missing_cell_types}"
                 )
 
             # Re-add the unkonwn category if it was present originally
@@ -351,7 +365,9 @@ class CellAnnotator(BaseAnnotator):
                     f"For sample {sample}, some cell types were not mapped: {annotator.annotation_df['cell_type'][unmapped_cell_types].unique()}"
                 )
 
-    def reorder_clusters(self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name) -> None:
+    def reorder_and_color_clusters(
+        self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name, assign_colors: bool = False
+    ) -> None:
         """Assign consistent ordering across cell type annotations.
 
         Note that for multiple samples with many clusters each, this typically requires a more powerful model
@@ -363,6 +379,9 @@ class CellAnnotator(BaseAnnotator):
             List of keys in `adata.obs` to reorder.
         unknown_key
             Name of the unknown category.
+        assign_colors
+            Assign colors to the cell types across keys. These are supposed to be consistent across keys and meaningful bioligically,
+            such that similar cell types get similar colors.
 
         Returns
         -------
@@ -390,61 +409,79 @@ class CellAnnotator(BaseAnnotator):
             instruction=order_prompt,
             response_format=CellTypeListOutput,
         )
-        label_sets = _get_consistent_ordering(self.adata, response.cell_type_list, keys)
+
+        if assign_colors:
+            global_names_and_colors = self._get_cluster_colors(
+                clusters=response.cell_type_list, unknown_key=unknown_key
+            )
+        else:
+            global_names_and_colors = {cell_type: "" for cell_type in response.cell_type_list}
+
+        label_sets = _get_consistent_ordering(self.adata, global_names_and_colors, keys)
 
         # Re-add the unknown category, make sure that we retained all categories, and write to adata
-        for obs_key, new_cluster_names in label_sets.items():
+        for obs_key, name_and_color in label_sets.items():
             if unknown_key in self.adata.obs[obs_key].cat.categories:
                 logger.debug(
                     "Readding the unknown category with key '%s'",
                     unknown_key,
                 )
-                new_cluster_names.append(unknown_key)
+                name_and_color[unknown_key] = PackageConstants.unknown_color
 
-            original_categories = self.adata.obs[obs_key].unique()
-            _validate_list_mapping(original_categories, new_cluster_names, context=obs_key)
+            _validate_list_mapping(list(self.adata.obs[obs_key].unique()), list(name_and_color.keys()), context=obs_key)
 
             logger.info("Writing categories for key '%s'", obs_key)
-            self.adata.obs[obs_key] = self.adata.obs[obs_key].cat.set_categories(new_cluster_names)
+            self.adata.obs[obs_key] = self.adata.obs[obs_key].cat.set_categories(list(name_and_color.keys()))
+            if assign_colors:
+                self.adata.uns[f"{obs_key}_colors"] = name_and_color.values()
 
-    def get_cluster_colors(self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name) -> None:
+    def _get_cluster_colors(
+        self, clusters: str | list[str], unknown_key: str = PackageConstants.unknown_name
+    ) -> dict[str, str]:
         """Query OpenAI for relational cluster colors.
 
         Parameters
         ----------
-        keys
-            Keys in `adata.obs` to query colors for.
+        clusters
+            Either a key in `adata.obs` or a list of cell type names.
         unknown_key
             Name of the unknown category.
 
         Returns
         -------
-        Updates the following attributes:
-        - `self.adata.uns[f"{keys}_colors"]`
+        Mapping of cell types to colors.
 
         """
-        if isinstance(keys, str):
-            keys = [keys]
+        if isinstance(clusters, str):
+            if clusters not in self.adata.obs:
+                raise ValueError(f"Key '{clusters}' not found in `adata.obs`.")
+            cluster_list = list(self.adata.obs[clusters].unique())
+        elif isinstance(clusters, list):
+            cluster_list = clusters
+        else:
+            raise ValueError(f"Invalid type for 'clusters': {type(clusters)}")
 
-        logger.info("Iterating over obs keys")
-        for key in tqdm(keys):
-            # format the cluster names as a string and prepare the query prompt
-            cluster_names = ", ".join(cl for cl in self.adata.obs[key].cat.categories if cl != unknown_key)
-            color_prompt = Prompts.COLOR_PROMPT.format(cluster_names=cluster_names)
+        cluster_names = ", ".join(cl for cl in cluster_list if cl != unknown_key)
+        color_prompt = Prompts.COLOR_PROMPT.format(cluster_names=cluster_names)
 
-            response = self.query_openai(instruction=color_prompt, response_format=CellTypeColorOutput)
-            color_dict = {
-                item.original_cell_type_label: item.assigned_color for item in response.cell_type_to_color_mapping
-            }
+        logger.info("Querying cluster colors.")
+        response = self.query_openai(instruction=color_prompt, response_format=CellTypeColorOutput)
+        color_dict = {
+            item.original_cell_type_label: item.assigned_color for item in response.cell_type_to_color_mapping
+        }
 
-            # Re-add the unknown category, make sure that we retained all categories, and write to adata
-            if unknown_key in self.adata.obs[key].cat.categories:
-                logger.debug(
-                    "Readding the unknown category with key '%s'",
-                    unknown_key,
-                )
-                color_dict[unknown_key] = PackageConstants.unknown_color
+        # Re-add the unknown category, make sure that we retained all categories, and write to adata
+        if unknown_key in cluster_list:
+            logger.debug(
+                "Readding the unknown category with key '%s'",
+                unknown_key,
+            )
+            color_dict[unknown_key] = PackageConstants.unknown_color
 
-            if list(self.adata.obs[key].cat.categories) != list(color_dict.keys()):
-                raise ValueError(f"New categories for key {key} differ from original categories.")
-            self.adata.uns[f"{key}_colors"] = color_dict.values()
+        # make sure that the new categories are the same as the original categories
+        _validate_list_mapping(cluster_list, list(color_dict.keys()))
+
+        # fix their order in case it was changed
+        color_dict = {key: color_dict[key] for key in cluster_list}
+
+        return color_dict
