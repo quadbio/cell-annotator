@@ -97,26 +97,22 @@ class Prompts:
     """.strip()
 
     COLOR_PROMPT = """
-    You are tasked with assigning meaningful colors to cell type labels. Below are the cell type annotations you need to assign colors to:
+    You need to assign meaningful colors to the following cell type labels:
 
     {cluster_names}
 
-    Now assign colors to these cell type labels. Follow these rules:
-    1. Use colors that are biologically meaningful: similar cell types should have related colors (e.g., shades of the same color family), and unrelated cell types should have distinct colors.
+    Follow these rules:
+    1. Use colors that are biologically meaningful: similar cell types should have similar colors (e.g., shades of the same color family), and unrelated cell types should have distinct colors.
     3. Use hexadecimal color codes (e.g., "#1f77b4").
     4. Do not use white, black, or grey colors.
-    5. Do not modify the order of the labels.
+    5. Do not modify the order of the cell type labels.
     6. Include all labels in the color assignmeent, and do not modify them in any way.
 
     ### Example:
     If the cell type annotations are:
-        [T cells, NK cells, B cells, Macrophages, Dendritic cells]
+        {example_cell_types}
     A possible color assignment could be:
-        "T cells": "#1f77b4",
-        "NK cells": "#aec7e8",a
-        "B cells": "#ff7f0e",
-        "Macrophages": "#2ca02c",
-        "Dendritic cells": "#98df8a"
+        {example_color_assignment}
 
     ### Output format:
     For each cell type, provide output in the following format:

@@ -480,7 +480,13 @@ class CellAnnotator(BaseAnnotator):
             raise ValueError(f"Invalid type for 'clusters': {type(clusters)}")
 
         cluster_names = ", ".join(cl for cl in cluster_list if cl != unknown_key)
-        color_prompt = Prompts.COLOR_PROMPT.format(cluster_names=cluster_names)
+        color_prompt = Prompts.COLOR_PROMPT.format(
+            cluster_names=cluster_names,
+            example_cell_types=", ".join(PromptExamples.color_mapping_example.keys()),
+            example_color_assignment="; ".join(
+                f"{key}: {value}" for key, value in PromptExamples.color_mapping_example.items()
+            ),
+        )
 
         logger.info("Querying cluster colors.")
         response = self.query_openai(instruction=color_prompt, response_format=CellTypeColorOutput)
