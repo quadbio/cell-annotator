@@ -59,7 +59,7 @@ class PromptExamples:
         "Oligodendrocytes",
     ]
 
-    color_mapping_example = {
+    color_mapping_example = {  # This example is from Pijuan-Sala et al., Nature 2019
         "Epiblast": "#504337",
         "Primitive streak": "#D0B188",
         "Caudal epiblast": "#8B5250",
