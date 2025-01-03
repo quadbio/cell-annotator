@@ -33,7 +33,7 @@ class TestBaseAnnotator:
             response_format=TestOutput,
         )
 
-    @pytest.mark.slow
+    @pytest.mark.openai
     def test_query_openai_actual(self, base_annotator):
         response = base_annotator.query_openai(instruction="Test instruction", response_format=TestOutput)
 

@@ -119,7 +119,7 @@ class TestUtils:
         assert response.parsed_response == "parsed_response"
         mock_client.beta.chat.completions.parse.assert_called_once()
 
-    @pytest.mark.slow
+    @pytest.mark.opanai
     def test_query_openai_actual(self):
         response = _query_openai(
             agent_description="Test agent",

@@ -231,12 +231,12 @@ class CellAnnotator(BaseAnnotator):
         # set the annotated flag to True
         self.annotated = True
 
-        # harmonize annotations across samples
-        try:
+        # harmonize annotations across samples if necessary
+        if len(self.sample_annotators) > 1:
             self._harmonize_annotations()
             self.cell_type_key = "cell_type_harmonized"
-        except ValueError as e:
-            logger.warning("Error during annotation harmonization: %s. Skipping.", e)
+        else:
+            logger.info("Only one sample found. No need to harmonize annotations.")
             self.cell_type_key = "cell_type"
 
         # write the annotatation results back to self.adata
