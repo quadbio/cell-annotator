@@ -10,12 +10,7 @@ from tqdm.auto import tqdm
 from cell_annotator._constants import PackageConstants, PromptExamples
 from cell_annotator._logging import logger
 from cell_annotator._prompts import Prompts
-from cell_annotator._response_formats import (
-    CellTypeColorOutput,
-    CellTypeListOutput,
-    CellTypeMappingOutput,
-    ExpectedMarkerGeneOutput,
-)
+from cell_annotator._response_formats import CellTypeColorOutput, CellTypeListOutput, ExpectedMarkerGeneOutput
 from cell_annotator.base_annotator import BaseAnnotator
 from cell_annotator.sample_annotator import SampleAnnotator
 from cell_annotator.utils import (
@@ -312,58 +307,8 @@ class CellAnnotator(BaseAnnotator):
 
         # Step 2: map cell types to harmonized names for each sample annotator
         logger.info("Iterating over samples to harmonize cell type annotations.")
-        for sample, annotator in tqdm(self.sample_annotators.items()):
-            local_cell_types = [cat for cat in annotator.annotation_df["cell_type"].unique() if cat != unknown_key]
-
-            mapping_prompt = [
-                {"role": "assistant", "content": "; ".join(self.global_cell_type_list)},
-                {
-                    "role": "user",
-                    "content": Prompts.MAPPING_PROMPT.format(
-                        cell_type_list=", ".join(local_cell_types),
-                    ),
-                },
-            ]
-
-            response = self.query_openai(
-                instruction=deduplication_prompt,
-                other_messages=mapping_prompt,
-                response_format=CellTypeMappingOutput,
-            )
-
-            # Convert to dictionary
-            cell_type_mapping_dict = {
-                mapping.original_name: mapping.unique_name for mapping in response.cell_type_mapping
-            }
-
-            # validate keys and values in the mapping
-            _validate_list_mapping(local_cell_types, cell_type_mapping_dict.keys(), context=sample)
-
-            # Check if all values in cell_type_mapping_dict are in the global_cell_type_set
-            missing_cell_types = [
-                value for value in cell_type_mapping_dict.values() if value not in self.global_cell_type_list
-            ]
-            if missing_cell_types:
-                raise ValueError(
-                    f"For sample `{sample}`, some cell types were not found in the global list: {missing_cell_types}"
-                )
-
-            # Re-add the unkonwn category if it was present originally
-            original_categories = annotator.annotation_df["cell_type"].unique()
-            if unknown_key in original_categories:
-                cell_type_mapping_dict[unknown_key] = unknown_key
-
-            # Introduce a new column "cell_type_harmonized" in annotator.annotation_df
-            annotator.annotation_df["cell_type_harmonized"] = annotator.annotation_df["cell_type"].map(
-                cell_type_mapping_dict
-            )
-
-            # Check for any unmapped cell types and raise an error if found
-            unmapped_cell_types = annotator.annotation_df["cell_type_harmonized"].isna()
-            if unmapped_cell_types.any():
-                raise ValueError(
-                    f"For sample {sample}, some cell types were not mapped: {annotator.annotation_df['cell_type'][unmapped_cell_types].unique()}"
-                )
+        for annotator in tqdm(self.sample_annotators.values()):
+            annotator.harmonize_annotations(self.global_cell_type_list, unknown_key=unknown_key)
 
     def reorder_and_color_clusters(
         self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name, assign_colors: bool = False

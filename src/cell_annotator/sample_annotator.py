@@ -9,7 +9,7 @@ from scanpy.tools._rank_genes_groups import _Method
 from cell_annotator._constants import PackageConstants
 from cell_annotator._logging import logger
 from cell_annotator._prompts import Prompts
-from cell_annotator._response_formats import BaseOutput, PredictedCellTypeOutput
+from cell_annotator._response_formats import BaseOutput, CellTypeMappingOutput, PredictedCellTypeOutput
 from cell_annotator.base_annotator import BaseAnnotator
 from cell_annotator.utils import _filter_by_category_size, _get_auc, _get_specificity, _try_sorting_dict_by_keys
 
@@ -58,6 +58,7 @@ class SampleAnnotator(BaseAnnotator):
         self.marker_gene_dfs: dict[str, pd.DataFrame] | None = None
         self.marker_genes: dict[str, list[str]] = {}
         self.annotation_dict: dict[str, BaseOutput] = {}
+        self.local_cell_type_mapping: dict[str, str] = {}
 
         # compute the number of cells per cluster
         self.n_cells_per_cluster = _try_sorting_dict_by_keys(self.adata.obs[self.cluster_key].value_counts().to_dict())
@@ -244,3 +245,63 @@ class SampleAnnotator(BaseAnnotator):
 
         # add the number of cells per cluster
         self.annotation_df.insert(0, "n_cells", self.n_cells_per_cluster)
+
+    def harmonize_annotations(
+        self, global_cell_type_list: list[str], unknown_key: str = PackageConstants.unknown_name
+    ) -> None:
+        """Map local cell type names to global cell type names.
+
+        Parameters
+        ----------
+        global_cell_type_list
+            List of global cell types.
+        unknown_key
+            Key for the unknown category.
+
+        Returns
+        -------
+        Updates the following fields:
+        - `self.local_cell_type_mapping`
+        - `self.annotation_df["cell_type_harmonized"]`
+
+        """
+        if self.annotation_df is None:
+            raise ValueError("The annotation DataFrame is not initialized. Run `annotate_clusters` first.")
+        original_categories = self.annotation_df["cell_type"].unique()
+        local_cell_type_mapping = {cat: "" for cat in original_categories if cat != unknown_key}
+
+        logger.debug("Iterating over clusters to map local annotations to global naming scheme.")
+        for cat in local_cell_type_mapping.keys():
+            mapping_prompt = Prompts.MAPPING_PROMPT.format(
+                global_cell_type_list=", ".join(global_cell_type_list),
+                local_cell_type_list=", ".join(local_cell_type_mapping.keys()),
+                current_cell_type=cat,
+            )
+
+            response = self.query_openai(
+                instruction=mapping_prompt,
+                response_format=CellTypeMappingOutput,
+            )
+
+            # Verfiy the mapping
+            global_name = response.mapped_global_name
+            if global_name not in global_cell_type_list:
+                logger.warning(
+                    "Invalid global cell type name: %s in sample `%s`. Re-using the original name: %s.",
+                    global_name,
+                    self.sample_name,
+                    cat,
+                )
+                local_cell_type_mapping[cat] = cat
+            else:
+                local_cell_type_mapping[cat] = global_name
+
+        # Re-add the unkonwn category if it was present originally
+        if unknown_key in original_categories:
+            local_cell_type_mapping[unknown_key] = unknown_key
+
+        # Write to self
+        self.local_cell_type_mapping = local_cell_type_mapping
+
+        # Introduce a new column "cell_type_harmonized" in annotator.annotation_df
+        self.annotation_df["cell_type_harmonized"] = self.annotation_df["cell_type"].map(local_cell_type_mapping)

@@ -33,17 +33,10 @@ class CellTypeListOutput(BaseOutput):
     cell_type_list: list[str] = Field(default_factory=list)
 
 
-class CellTypeMapping(BaseOutput):
-    """Strings representing old and new cell type names."""
-
-    original_name: str = Field(default_factory=str)
-    unique_name: str = Field(default_factory=str)
-
-
 class CellTypeMappingOutput(BaseOutput):
     """Dict mapping old to new cell type names."""
 
-    cell_type_mapping: list[CellTypeMapping] = Field(default_factory=list)
+    mapped_global_name: str = Field(default_factory=str)
 
 
 class CellTypeMarkers(BaseOutput):

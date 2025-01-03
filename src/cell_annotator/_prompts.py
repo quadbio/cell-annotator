@@ -79,21 +79,19 @@ class Prompts:
     """.strip()
 
     MAPPING_PROMPT = """
-    Now, you need to map cell type annotations ('cell_labels_user') to the unique set of annotations you provided earlier ('cell_labels_global'). Here is the list of cell type annotations you need to map ('cell_labels_user'):
-    {cell_type_list}
+    You're given two lists of cell type annotations. The first list, called 'cell_types_local', contains the cell type annotations from a local dataset. The second list, called 'cell_types_global', contains a unique set of cell type annotations that are used globally. Your task is to map the local cell type annotations to the global cell type annotations. Here are both lists:
+
+    Local cell type annotations:
+    {local_cell_type_list}
+
+    Global cell type annotations:
+    {global_cell_type_list}
+
+    Now, map the following item from the local list to the global list: {current_cell_type}.
 
     Follow these rules:
-    1. You must include all elements from the 'cell_labels_user' list exactly once.
-    2. You must map each element from the 'cell_labels_user' list to a unique element from the 'cell_labels_global' list. Be careful with capitalization, spelling, and abbreviations.
-    2. You cannot modify the names of any labels in either list. Use the labels exactly as they are provided.
-
-    Your task it to find the mapping, not to modify the labels themselves.
-
-     ### Output format:
-    ```
-    - original_name: name of the cell type as provided in 'cell_labels_user'.
-    - unique_name: name of the cell type from 'cell_labels_global' that corresponds to the original name.
-    ```
+    1. Map the local cell type annotation to the global cell type annotation that best represents it.
+    2. Do not modify the corresponding entry from the global cell type annotation list in any way. Use the labels exactly as they are provided.
     """.strip()
 
     COLOR_PROMPT = """
@@ -102,7 +100,7 @@ class Prompts:
     {cluster_names}
 
     Follow these rules:
-    1. Use colors that are biologically meaningful: similar cell types should have similar colors (e.g., shades of the same color family), and unrelated cell types should have distinct colors.
+    1. Use colors that are biologically meaningful: similar cell types should have similar colors (e.g., shades of the same color family, which are still easy to distinguish by eye), and unrelated cell types should have distinct colors.
     3. Use hexadecimal color codes (e.g., "#1f77b4").
     4. Do not use white, black, or grey colors.
     5. Do not modify the order of the cell type labels.
