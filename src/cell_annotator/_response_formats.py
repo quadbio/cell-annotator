@@ -60,3 +60,9 @@ class PredictedCellTypeOutput(BaseOutput):
     cell_state: str = Field(default_factory=lambda: "Unknown")
     annotation_confidence: str = Field(default_factory=lambda: "Unknown")
     reason_for_confidence_estimate: str = Field(default_factory=lambda: "Unknown")
+
+
+class TestOutput(BaseOutput):
+    """Output class for testing purposes."""
+
+    parsed_response: str = Field(default_factory=str)
