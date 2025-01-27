@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 import scanpy as sc
 
-from cell_annotator._response_formats import TestOutput
+from cell_annotator._response_formats import OutputForTesting
 from cell_annotator.utils import (
     _filter_by_category_size,
     _format_annotation,
@@ -106,27 +106,27 @@ class TestUtils:
     def test_query_openai(self, MockOpenAI):
         mock_client = MockOpenAI.return_value
         mock_response = MagicMock()
-        mock_response.choices[0].message.parsed = TestOutput(parsed_response="parsed_response")
+        mock_response.choices[0].message.parsed = OutputForTesting(parsed_response="parsed_response")
         mock_client.beta.chat.completions.parse.return_value = mock_response
 
         response = _query_openai(
             agent_description="Test agent",
             instruction="Test instruction",
             model="gpt-4o-mini",
-            response_format=TestOutput,
+            response_format=OutputForTesting,
         )
 
         assert response.parsed_response == "parsed_response"
         mock_client.beta.chat.completions.parse.assert_called_once()
 
-    @pytest.mark.opanai
+    @pytest.mark.opanai()
     def test_query_openai_actual(self):
         response = _query_openai(
             agent_description="Test agent",
             instruction="Test instruction",
             model="gpt-4o-mini",
-            response_format=TestOutput,
+            response_format=OutputForTesting,
         )
 
         assert response is not None
-        assert isinstance(response, TestOutput)
+        assert isinstance(response, OutputForTesting)

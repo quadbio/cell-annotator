@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from cell_annotator._prompts import Prompts
-from cell_annotator._response_formats import TestOutput
+from cell_annotator._response_formats import OutputForTesting
 from cell_annotator.base_annotator import BaseAnnotator
 
 
@@ -16,11 +16,11 @@ class TestBaseAnnotator:
 
     @patch("cell_annotator.base_annotator.BaseAnnotator.query_openai")
     def test_query_openai(self, mock_query_openai, base_annotator):
-        mock_response = TestOutput(parsed_response="parsed_response")
+        mock_response = OutputForTesting(parsed_response="parsed_response")
         mock_query_openai.return_value = mock_response
 
         agent_description = Prompts.AGENT_DESCRIPTION.format(species="human")
-        response = base_annotator.query_openai(instruction="Test instruction", response_format=TestOutput)
+        response = base_annotator.query_openai(instruction="Test instruction", response_format=OutputForTesting)
 
         print("Agent Description:", agent_description)
         print("Instruction:", "Test instruction")
@@ -30,12 +30,12 @@ class TestBaseAnnotator:
         assert response.parsed_response == "parsed_response"
         mock_query_openai.assert_called_once_with(
             instruction="Test instruction",
-            response_format=TestOutput,
+            response_format=OutputForTesting,
         )
 
-    @pytest.mark.openai
+    @pytest.mark.openai()
     def test_query_openai_actual(self, base_annotator):
-        response = base_annotator.query_openai(instruction="Test instruction", response_format=TestOutput)
+        response = base_annotator.query_openai(instruction="Test instruction", response_format=OutputForTesting)
 
         assert response is not None
-        assert isinstance(response, TestOutput)
+        assert isinstance(response, OutputForTesting)

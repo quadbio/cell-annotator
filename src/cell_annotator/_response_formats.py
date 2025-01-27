@@ -62,7 +62,7 @@ class PredictedCellTypeOutput(BaseOutput):
     reason_for_confidence_estimate: str = Field(default_factory=lambda: "Unknown")
 
 
-class TestOutput(BaseOutput):
+class OutputForTesting(BaseOutput):
     """Output class for testing purposes."""
 
     parsed_response: str = Field(default_factory=str)

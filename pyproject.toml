@@ -112,12 +112,14 @@ lint.per-file-ignores."tests/*" = [ "D" ]
 lint.pydocstyle.convention = "numpy"
 
 [tool.pytest.ini_options]
+markers = [
+  "openai: mark a test querying OpenAI models.",
+]
 testpaths = [ "tests" ]
 xfail_strict = true
 addopts = [
   "--import-mode=importlib", # allow using test files with same name
 ]
-markers = [ "openai: marks tests as querying OpenAI's API (deselect with '-m \"not openai\"')" ]
 
 [tool.coverage.run]
 source = [ "cell_annotator" ]
