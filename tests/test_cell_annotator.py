@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from cell_annotator.cell_annotator import CellAnnotator
@@ -22,6 +24,7 @@ class TestCellAnnotator:
 
     @pytest.mark.openai()
     def test_get_expected_cell_type_markers(self, cell_annotator):
+        assert os.getenv("OPENAI_API_KEY"), "OpenAI API key is not set"
         cell_annotator.get_expected_cell_type_markers()
         expected_markers = cell_annotator.expected_marker_genes
         print("Expected Markers:", expected_markers)
@@ -45,6 +48,7 @@ class TestCellAnnotator:
 
     @pytest.mark.openai()
     def test_annotate_clusters(self, cell_annotator):
+        assert os.getenv("OPENAI_API_KEY"), "OpenAI API key is not set"
         # Step 1: Call get_cluster_markers and run checks
         cell_annotator.get_cluster_markers(min_auc=0.6)
 
@@ -81,6 +85,7 @@ class TestCellAnnotator:
 
     @pytest.mark.openai()
     def test_reorder_and_color_clusters(self, cell_annotator):
+        assert os.getenv("OPENAI_API_KEY"), "OpenAI API key is not set"
         # Add a second annotation key to the adata object
         cell_annotator.adata.obs["leiden_2"] = cell_annotator.adata.obs["leiden"].copy()
 
