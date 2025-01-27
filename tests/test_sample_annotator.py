@@ -99,8 +99,6 @@ class TestSampleAnnotator:
         assert sample_annotator.marker_genes is not None
 
         for _cluster, df in sample_annotator.marker_gene_dfs.items():
-            print(f"Cluster {_cluster} Marker Genes:")
-            print(df)
             assert not df.empty
             assert "gene" in df.columns
             assert "specificity" in df.columns
@@ -114,7 +112,5 @@ class TestSampleAnnotator:
         sample_annotator.get_cluster_markers(min_auc=0.6)
         sample_annotator.annotate_clusters(min_markers=1, expected_marker_genes=expected_marker_genes)
 
-        print("Annotations:")
-        print(sample_annotator.annotation_df[["n_cells", "cell_type"]])
         assert sample_annotator.annotation_dict["0"].cell_type == "Neuron"
         assert sample_annotator.annotation_dict["1"].cell_type == "Fibroblast"
