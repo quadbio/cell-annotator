@@ -26,7 +26,7 @@ def setup_data():
     clust_mask = np.array([True, False, True, False])
 
     # Create raw count data with gene names
-    raw_counts = np.array([[1, 0], [0, 1], [1, 1], [0, 0]])
+    raw_counts = np.array([[1, 0], [0, 1], [1, 1], [4, 0]])
     adata = sc.AnnData(X=raw_counts, var=pd.DataFrame(index=genes))
     adata.raw = adata.copy()  # Set raw data
 
@@ -119,7 +119,7 @@ class TestUtils:
         assert response.parsed_response == "parsed_response"
         mock_client.beta.chat.completions.parse.assert_called_once()
 
-    @pytest.mark.opanai()
+    @pytest.mark.openai()
     def test_query_openai_actual(self):
         response = _query_openai(
             agent_description="Test agent",

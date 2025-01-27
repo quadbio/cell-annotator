@@ -10,9 +10,7 @@ from cell_annotator.base_annotator import BaseAnnotator
 class TestBaseAnnotator:
     @pytest.fixture
     def base_annotator(self):
-        return BaseAnnotator(
-            species="human", tissue="brain", stage="adult", cluster_key="leiden", model="gpt-4o-mini", max_tokens=100
-        )
+        return BaseAnnotator(species="human", tissue="brain", stage="adult", cluster_key="leiden", model="gpt-4o-mini")
 
     @patch("cell_annotator.base_annotator.BaseAnnotator.query_openai")
     def test_query_openai(self, mock_query_openai, base_annotator):
