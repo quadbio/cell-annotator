@@ -76,9 +76,7 @@ def _query_openai(
         return response_format.default_failure(failure_reason=failure_reason)
 
     except openai.OpenAIError as e:
-        failure_reason = f"OpenAI API error: {str(e)}"
-        logger.warning(failure_reason)
-        return response_format.default_failure(failure_reason=failure_reason)
+        raise e
 
 
 def _get_specificity(
