@@ -32,16 +32,17 @@ class TestCellAnnotator:
         assert expected_markers is not None
         assert isinstance(expected_markers, dict)
 
-        neuron_markers_found = any(
-            any(neuron_synonym in key for neuron_synonym in neuronal_cell_types)
-            and set(expected_marker_genes["Neuron"]).intersection(expected_markers[key])
-            for key in expected_markers
-        )
-        fibroblast_markers_found = any(
-            any(fibroblast_synonym in key for fibroblast_synonym in fibroblast_cell_types)
-            and set(expected_marker_genes["Fibroblast"]).intersection(expected_markers[key])
-            for key in expected_markers
-        )
+        neuron_markers_found = False
+        fibroblast_markers_found = False
+
+        for key, markers in expected_markers.items():
+            print(f"Cell Type: {key}, Markers: {markers}")
+            if any(neuron_synonym in key for neuron_synonym in neuronal_cell_types):
+                if set(expected_marker_genes["Neuron"]).intersection(markers):
+                    neuron_markers_found = True
+            if any(fibroblast_synonym in key for fibroblast_synonym in fibroblast_cell_types):
+                if set(expected_marker_genes["Fibroblast"]).intersection(markers):
+                    fibroblast_markers_found = True
 
         assert neuron_markers_found
         assert fibroblast_markers_found
