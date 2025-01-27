@@ -1,6 +1,6 @@
 """Base model class to query openAI models."""
 
-import time
+from tenacity import retry, stop_after_attempt, wait_random_exponential
 
 from cell_annotator._prompts import Prompts
 from cell_annotator._response_formats import BaseOutput
@@ -43,13 +43,12 @@ class BaseAnnotator:
         self.model = model
         self.max_tokens = max_tokens
 
+    @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
     def query_openai(
         self,
         instruction: str,
         response_format: type[BaseOutput],
         other_messages: list | None = None,
-        max_retries: int = 5,
-        backoff_factor: float = 1.5,
     ) -> BaseOutput:
         """
         Query OpenAI to retrieve structured output based on the provided instruction.
@@ -62,36 +61,20 @@ class BaseAnnotator:
             Response format class.
         other_messages
             Additional messages to provide to the model.
-        max_retries
-            Maximum number of retries for rate limit errors.
-        backoff_factor
-            Factor by which the delay increases with each retry.
 
         Returns
         -------
         Parsed response.
         """
         agent_description = Prompts.AGENT_DESCRIPTION.format(species=self.species)
-        retries = 0
 
-        while retries < max_retries:
-            try:
-                response = _query_openai(
-                    agent_description=agent_description,
-                    instruction=instruction,
-                    model=self.model,
-                    response_format=response_format,
-                    other_messages=other_messages,
-                    max_tokens=self.max_tokens,
-                )
-                return response
-            except Exception as e:
-                if "rate limit" in str(e).lower() or "invalid_api_key" in str(e).lower():
-                    retries += 1
-                    delay = backoff_factor**retries
-                    print(f"Error: {e}. Retrying in {delay} seconds...")
-                    time.sleep(delay)
-                else:
-                    raise e
+        response = _query_openai(
+            agent_description=agent_description,
+            instruction=instruction,
+            model=self.model,
+            response_format=response_format,
+            other_messages=other_messages,
+            max_tokens=self.max_tokens,
+        )
 
-        raise Exception("Max retries exceeded for OpenAI API request.")
+        return response

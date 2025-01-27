@@ -28,6 +28,7 @@ dependencies = [
   "scanpy",
   # for debug logging (referenced from the issue template)
   "session-info",
+  "tenacity",
 ]
 optional-dependencies.dev = [
   "pre-commit",
