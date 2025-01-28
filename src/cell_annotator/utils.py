@@ -1,6 +1,5 @@
 """Package utility functions."""
 
-import os
 import re
 from collections.abc import Sequence
 
@@ -47,7 +46,6 @@ def _query_openai(
     -------
     Parsed response from the OpenAI API.
     """
-    openai.api_key = os.getenv("OPENAI_API_KEY")
     client = OpenAI()
 
     if other_messages is None:
