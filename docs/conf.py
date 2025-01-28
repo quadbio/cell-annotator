@@ -63,14 +63,6 @@ extensions = [
 
 autosummary_generate = True
 autodoc_member_order = "groupwise"
-autodoc_default_options = {
-    "members": True,
-    "undoc-members": True,
-    "private-members": True,
-    "special-members": True,
-    "inherited-members": True,
-    "show-inheritance": True,
-}
 default_role = "literal"
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True

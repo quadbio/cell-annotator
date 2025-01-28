@@ -31,17 +31,19 @@ class CellAnnotator(BaseAnnotator):
     adata
         Full AnnData object with multiple samples.
     sample_key
-        Key in `adata.obs` indicating batch membership.
+        Key in :attr:`~anndata.AnnData.obs` indicating batch membership.
     species
-        Species name (inherited from :class:`~cell_annotator.BaseAnnotator`).
+        Species name.
     tissue
-        Tissue name (inherited from BaseAnnotator).
+        Tissue name.
     stage
-        Developmental stage (inherited from BaseAnnotator).
+        Developmental stage.
     cluster_key
         Key of the cluster column in adata.obs.
     model
-        OpenAI model name (inherited from BaseAnnotator).
+        OpenAI model name.
+    max_tokens
+        Maximum number of tokens for OpenAI queries.
     """
 
     def __init__(
