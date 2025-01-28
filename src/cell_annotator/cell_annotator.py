@@ -53,8 +53,9 @@ class CellAnnotator(BaseAnnotator):
         cluster_key: str = "leiden",
         sample_key: str | None = None,
         model: str = "gpt-4o-mini",
+        max_tokens: int | None = None,
     ):
-        super().__init__(species, tissue, stage, cluster_key, model)
+        super().__init__(species, tissue, stage, cluster_key, model, max_tokens)
         self.adata = adata
         self.sample_key = sample_key
 

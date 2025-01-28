@@ -22,6 +22,7 @@ class TestSampleAnnotator:
             stage="adult",
             cluster_key="leiden",
             model="gpt-4o-mini",
+            max_tokens=500,
         )
 
     @patch("cell_annotator.sample_annotator.SampleAnnotator.query_openai")
