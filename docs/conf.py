@@ -12,7 +12,7 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
-
+sys.path.insert(0, str(HERE / "../src"))  # Ensure this line is correct
 
 # -- Project information -----------------------------------------------------
 
@@ -62,8 +62,16 @@ extensions = [
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
 ]
 
-autosummary_generate = True
+autosummary_generate = True  # Ensure this is set to True
 autodoc_member_order = "groupwise"
+autodoc_default_options = {
+    "members": True,
+    "undoc-members": True,
+    "private-members": True,
+    "special-members": True,
+    "inherited-members": True,
+    "show-inheritance": True,
+}
 default_role = "literal"
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True

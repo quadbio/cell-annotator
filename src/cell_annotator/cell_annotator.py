@@ -33,7 +33,7 @@ class CellAnnotator(BaseAnnotator):
     sample_key
         Key in `adata.obs` indicating batch membership.
     species
-        Species name (inherited from BaseAnnotator).
+        Species name (inherited from :class:`~cell_annotator.BaseAnnotator`).
     tissue
         Tissue name (inherited from BaseAnnotator).
     stage
