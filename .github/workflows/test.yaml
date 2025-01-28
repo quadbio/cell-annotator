@@ -61,9 +61,9 @@ jobs:
           DISPLAY: :42
         run: |
           if [ "${{ matrix.python }}" == "3.12" ] && [ -z "${{ matrix.pip-flags }}" ]; then
-            pytest -v --color=yes
+            coverage run -m pytest -v --color=yes
           else
-            pytest -v --color=yes -m "not openai"
+            coverage run -m pytest -v --color=yes -m "not openai"
           fi
       - name: Report coverage
         run: |
