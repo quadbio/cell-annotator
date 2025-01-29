@@ -2,10 +2,12 @@
 
 [![Tests][badge-tests]][tests]
 [![Documentation][badge-docs]][documentation]
+[![Coverage][badge-coverage]][coverage]
 
 [badge-tests]: https://img.shields.io/github/actions/workflow/status/quadbio/cell-annotator/test.yaml?branch=main
 
 [badge-docs]: https://img.shields.io/readthedocs/{{ cookiecutter.project_name }}
+[badge-coverage]: https://codecov.io/gh/quadbio/cell-annotator/branch/main/graph/badge.svg
 
 A tool to annotate cell types based on marker genes using OpenAI models. Inspired by [Hou et al., Nature Methods 2024](https://www.nature.com/articles/s41592-024-02235-4) and [https://github.com/VPetukhov/GPTCellAnnotator](https://github.com/VPetukhov/GPTCellAnnotator).
 
@@ -31,7 +33,7 @@ pip install git+https://github.com/quadbio/cell-annotator.git@main
 
 After installation, head over to OpenAI to generate your API key: https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key
 
-Keep this key private and don't share it with anyone. `CellAnnotator` will try to read the key as an environmental variable - either expose it to the enrivonment yourself, or store it as an `.env` file anywhere within the repository where you conduct your analysis and plan to run `CellAnnotator`. The package will then use [dotenv](https://pypi.org/project/python-dotenv/) to export the key from the `env` file as an environmental variable.
+Keep this key private and don't share it with anyone. `CellAnnotator` will try to read the key as an environmental variable - either expose it to the environment yourself, or store it as an `.env` file anywhere within the repository where you conduct your analysis and plan to run `CellAnnotator`. The package will then use [dotenv](https://pypi.org/project/python-dotenv/) to export the key from the `env` file as an environmental variable.
 
 ## Contact
 
@@ -42,3 +44,4 @@ If you found a bug, please use the [issue tracker][].
 [tests]: https://github.com/quadbio/cell-annotator/actions/workflows/test.yml
 
 [documentation]: https://{{ cookiecutter.project_name }}.readthedocs.io
+[coverage]: https://codecov.io/gh/quadbio/cell-annotator
