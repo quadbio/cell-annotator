@@ -10,7 +10,7 @@
 [badge-docs]: https://img.shields.io/readthedocs/cell-annotator
 [badge-pre-commit]: https://results.pre-commit.ci/badge/github/quadbio/cell-annotator/main.svg
 
-A tool to annotate cell types based on marker genes using OpenAI models.
+A tool to annotate cell types in scRNA-seq data based on marker genes using OpenAI models.
 
 ## Key features
 
@@ -18,14 +18,24 @@ A tool to annotate cell types based on marker genes using OpenAI models.
 - Generate consistent annotations across samples of your study.
 - Optionally infuse prior knowledge by providing information about your biological system.
 - Retrieve reliable results thanks to [OpenAI structured outputs](https://platform.openai.com/docs/guides/structured-outputs)
-- Use pre-integration cell type labels to either score your integration quality (e.g. [scIB metrics](https://scib-metrics.readthedocs.io/en/stable/)) or to guide your integration effort (e.g. [scPoli](https://docs.scarches.org/en/latest/), [scANVI](https://docs.scvi-tools.org/en/stable/api/reference/scvi.model.SCANVI.html))
+- Use this tool to quickly generate pre-integration cell type labels to either score your integration quality (e.g. [scIB metrics](https://scib-metrics.readthedocs.io/en/stable/)) or to guide your integration effort (e.g. [scPoli](https://docs.scarches.org/en/latest/), [scANVI](https://docs.scvi-tools.org/en/stable/api/reference/scvi.model.SCANVI.html)).
 
 ## Installation
 
 You need to have Python 3.10 or newer installed on your system.
 If you don't have Python installed, we recommend installing [Mambaforge][].
 
-1. Install the latest development version:
+### PyPI
+
+Install by running:
+
+```bash
+pip install cell-annotator
+```
+
+### Development version
+
+To install the latest development version from [GitHub](https://github.com/quadbio/cell-annotator), run
 
 ```bash
 pip install git+https://github.com/quadbio/cell-annotator.git@main
@@ -36,6 +46,18 @@ pip install git+https://github.com/quadbio/cell-annotator.git@main
 After installation, head over to OpenAI to generate your [API key](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key)
 
 Keep this key private and don't share it with anyone. `CellAnnotator` will try to read the key as an environmental variable - either expose it to the environment yourself, or store it as an `.env` file anywhere within the repository where you conduct your analysis and plan to run `CellAnnotator`. The package will then use [dotenv](https://pypi.org/project/python-dotenv/) to export the key from the `env` file as an environmental variable.
+
+Here's the simplest way to annotate your data:
+
+```python
+from cell_annotator import CellAnnotator
+
+cell_ann = CellAnnotator(
+    adata, species="human", tissue="heart", cluster_key="leiden", sample_key="samples",
+).annotate_clusters()
+```
+
+By default, this will store annotations in `adata.obs['cell_type_predicted']`. Head over to our [tutorials](https://cell-annotator.readthedocs.io/en/latest/notebooks/tutorials/index.html) to see more advanced use cases, and learn how to adapt this to your own data. You can run `CellAnnotator` for just a single sample of data, or across multiple samples. In the latter case, it will attempt to harmonize annotations across samples.
 
 ## Credits
 
