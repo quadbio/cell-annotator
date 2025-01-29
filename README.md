@@ -1,5 +1,12 @@
 # CellAnnotator
 
+[![Tests][badge-tests]][tests]
+[![Documentation][badge-docs]][documentation]
+
+[badge-tests]: https://img.shields.io/github/actions/workflow/status/quadbio/cell-annotator/test.yaml?branch=main
+
+[badge-docs]: https://img.shields.io/readthedocs/{{ cookiecutter.project_name }}
+
 A tool to annotate cell types based on marker genes using OpenAI models. Inspired by [Hou et al., Nature Methods 2024](https://www.nature.com/articles/s41592-024-02235-4) and [https://github.com/VPetukhov/GPTCellAnnotator](https://github.com/VPetukhov/GPTCellAnnotator).
 
 ## Key features
@@ -32,3 +39,6 @@ If you found a bug, please use the [issue tracker][].
 
 [mambaforge]: https://github.com/conda-forge/miniforge#mambaforge
 [issue tracker]: https://github.com/quadbio/cell-annotator/issues
+[tests]: https://github.com/quadbio/cell-annotator/actions/workflows/test.yml
+
+[documentation]: https://{{ cookiecutter.project_name }}.readthedocs.io
