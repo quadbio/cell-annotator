@@ -57,7 +57,7 @@ optional-dependencies.test = [
 ]
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://cell-annotator.readthedocs.io/"
-urls.Homepage = "https://github.com/quadbio/cell-annotator"
+urls.Homepage = "https://cell-annotator.readthedocs.io/"
 urls.Source = "https://github.com/quadbio/cell-annotator"
 
 [tool.hatch.version]
