@@ -15,13 +15,13 @@ and this project adheres to [Semantic Versioning][]. Full commit history is avai
 
 #### Added
 
--   Update the documentation, in particular the installation instructions.
+- Update the documentation, in particular the installation instructions.
 
 ### 0.1.1 (2025-01-29)
 
 #### Added
 
--   Initial push to PyPI
+- Initial push to PyPI
 
 ### 0.1.0 (2025-01-29)
 
