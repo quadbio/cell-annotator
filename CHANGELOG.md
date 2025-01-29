@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning][]. Full commit history is avai
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 [commit logs]: https://github.com/quadbio/cell-annotator/commits
 
-## [Version 0.1]
+## Version 0.1
 
-### [0.1.0 (2025-01-29)]
+### 0.1.0 (2025-01-29)
 
 Initial package release
