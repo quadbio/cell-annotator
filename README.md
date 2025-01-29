@@ -14,11 +14,11 @@ A tool to annotate cell types based on marker genes using OpenAI models.
 
 ## Key features
 
--   Automatically annotate cells including type, state and confidence fields.
--   Generate consistent annotations across samples of your study.
--   Optionally infuse prior knowledge by providing information about your biological system.
--   Retrieve reliable results thanks to [OpenAI structured outputs](https://platform.openai.com/docs/guides/structured-outputs)
--   Use pre-integration cell type labels to either score your integration quality (e.g. [scIB metrics](https://scib-metrics.readthedocs.io/en/stable/)) or to guide your integration effort (e.g. [scPoli](https://docs.scarches.org/en/latest/), [scANVI](https://docs.scvi-tools.org/en/stable/api/reference/scvi.model.SCANVI.html))
+- Automatically annotate cells including type, state and confidence fields.
+- Generate consistent annotations across samples of your study.
+- Optionally infuse prior knowledge by providing information about your biological system.
+- Retrieve reliable results thanks to [OpenAI structured outputs](https://platform.openai.com/docs/guides/structured-outputs)
+- Use pre-integration cell type labels to either score your integration quality (e.g. [scIB metrics](https://scib-metrics.readthedocs.io/en/stable/)) or to guide your integration effort (e.g. [scPoli](https://docs.scarches.org/en/latest/), [scANVI](https://docs.scvi-tools.org/en/stable/api/reference/scvi.model.SCANVI.html))
 
 ## Installation
 
