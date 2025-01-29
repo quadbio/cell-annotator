@@ -50,3 +50,4 @@ If you found a bug, please use the [issue tracker][].
 [tests]: https://github.com/quadbio/cell-annotator/actions/workflows/test.yaml
 [coverage]: https://codecov.io/gh/quadbio/cell-annotator
 [documentation]: https://cell-annotator.readthedocs.io
+[pre-commit]: https://results.pre-commit.ci/latest/github/quadbio/cell-annotator/main
