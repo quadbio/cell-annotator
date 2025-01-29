@@ -68,5 +68,8 @@ jobs:
       - name: Report coverage
         run: |
           coverage report
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: quadbio/cell-annotator
