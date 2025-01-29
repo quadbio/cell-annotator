@@ -13,7 +13,6 @@ from pathlib import Path
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
 
-
 # -- Project information -----------------------------------------------------
 
 # NOTE: If you installed your project in editable mode, this might be stale.
@@ -62,14 +61,18 @@ extensions = [
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
 ]
 
+# autodoc + napoleon configuration
 autosummary_generate = True
-autodoc_member_order = "groupwise"
+autodoc_member_order = "alphabetical"
+autodoc_typehints = "description"
+
 default_role = "literal"
 napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = False
 napoleon_use_rtype = True  # having a separate entry generally helps readability
 napoleon_use_param = True
+
 myst_heading_anchors = 6  # create anchors for h1-h6
 myst_enable_extensions = [
     "amsmath",
@@ -102,7 +105,6 @@ intersphinx_mapping = {
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
-
 
 # -- Options for HTML output -------------------------------------------------
 
