@@ -203,7 +203,7 @@ class SampleAnnotator(BaseAnnotator):
         else:
             expected_markers_string = ""
 
-        actual_markers_all = "\n".join([f'- Cluster {i}: {", ".join(gs)}' for i, gs in self.marker_genes.items()])
+        actual_markers_all = "\n".join([f"- Cluster {i}: {', '.join(gs)}" for i, gs in self.marker_genes.items()])
 
         # loop over clusters to annotate
         logger.debug("Iterating over clusters to annotate.")
