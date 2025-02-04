@@ -54,6 +54,7 @@ optional-dependencies.doc = [
 optional-dependencies.test = [
   "coverage",
   "pytest",
+  "rich",
 ]
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://cell-annotator.readthedocs.io/"
