@@ -1,7 +1,5 @@
 """Base model class to query openAI models."""
 
-from tenacity import retry, stop_after_attempt, wait_random_exponential
-
 from cell_annotator._prompts import Prompts
 from cell_annotator._response_formats import BaseOutput
 from cell_annotator.utils import _query_openai
@@ -43,7 +41,6 @@ class BaseAnnotator:
         self.model = model
         self.max_tokens = max_tokens
 
-    @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
     def query_openai(
         self,
         instruction: str,
