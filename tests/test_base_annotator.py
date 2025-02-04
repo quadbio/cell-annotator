@@ -11,7 +11,12 @@ class TestBaseAnnotator:
     @pytest.fixture
     def base_annotator(self):
         return BaseAnnotator(
-            species="human", tissue="brain", stage="adult", cluster_key="leiden", model="gpt-4o-mini", max_tokens=300
+            species="human",
+            tissue="brain",
+            stage="adult",
+            cluster_key="leiden",
+            model="gpt-4o-mini",
+            max_completion_tokens=300,
         )
 
     @patch("cell_annotator.base_annotator.BaseAnnotator.query_openai")

@@ -20,7 +20,7 @@ class TestCellAnnotator:
             cluster_key="leiden",
             sample_key="sample",
             model="gpt-4o-mini",
-            max_tokens=1500,
+            max_completion_tokens=1500,
         )
 
     @pytest.mark.openai()

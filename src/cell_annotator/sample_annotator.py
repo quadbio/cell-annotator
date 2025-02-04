@@ -34,7 +34,7 @@ class SampleAnnotator(BaseAnnotator):
         Key of the cluster column in adata.obs (inherited from BaseAnnotator).
     model
         OpenAI model name (inherited from BaseAnnotator).
-    max_tokens
+    max_completion_tokens
         Maximum number of tokens the model is allowed to use.
 
     """
@@ -46,11 +46,11 @@ class SampleAnnotator(BaseAnnotator):
         species: str,
         tissue: str,
         stage: str = "adult",
-        cluster_key: str = "leiden",
-        model: str = "gpt-4o-mini",
-        max_tokens: int | None = None,
+        cluster_key: str = PackageConstants.default_cluster_key,
+        model: str = PackageConstants.default_model,
+        max_completion_tokens: int | None = None,
     ):
-        super().__init__(species, tissue, stage, cluster_key, model, max_tokens)
+        super().__init__(species, tissue, stage, cluster_key, model, max_completion_tokens)
         self.adata = adata
         self.sample_name = sample_name
 
@@ -175,7 +175,7 @@ class SampleAnnotator(BaseAnnotator):
 
         Parameters
         ----------
-        max_tokens
+        max_completion_tokens
             Maximum number of tokens for OpenAI API.
         min_markers
             Minimum number of requires marker genes per cluster.

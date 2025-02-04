@@ -6,8 +6,36 @@ from numpy.random import binomial, negative_binomial
 
 # Declare the dictionary of expected marker genes
 expected_marker_genes = {
-    "Neuron": ["MAP2", "NEFL", "RBFOX3", "SYN1", "GAP43", "DCX", "TUBB3", "NEUROD1", "STMN2", "ENO2"],
-    "Fibroblast": ["COL1A1", "COL3A1", "VIM", "ACTA2", "FAP", "PDGFRA", "THY1", "FN1", "SPARC", "S100A4"],
+    "Neuron": [
+        "MAP2",
+        "NEFL",
+        "RBFOX3",
+        "SYN1",
+        "GAP43",
+        "DCX",
+        "TUBB3",
+        "NEUROD1",
+        "STMN2",
+        "ENO2",
+        "SLC17A7",
+        "GAD1",
+        "GAD2",
+    ],
+    "Fibroblast": [
+        "COL1A1",
+        "COL3A1",
+        "VIM",
+        "ACTA2",
+        "FAP",
+        "PDGFRA",
+        "THY1",
+        "FN1",
+        "SPARC",
+        "S100A4",
+        "MMP2",
+        "MMP9",
+        "CDH11",
+    ],
 }
 
 # Declare the neuronal and fibroblast cell types
@@ -29,10 +57,10 @@ def get_example_data(n_cells: int = 100, n_samples: int = 1) -> AnnData:
     n_group_2 = n_cells - n_group_1
     n_marker_genes = int(n_genes / 2)
 
-    adata.X[:n_group_1, :10] = np.multiply(
+    adata.X[:n_group_1, :n_marker_genes] = np.multiply(
         binomial(1, 0.9, (n_group_1, n_marker_genes)), negative_binomial(1, 0.5, (n_group_1, n_marker_genes))
     )
-    adata.X[n_group_1:, 10:] = np.multiply(
+    adata.X[n_group_1:, n_marker_genes:] = np.multiply(
         binomial(1, 0.9, (n_group_2, n_marker_genes)), negative_binomial(1, 0.5, (n_group_2, n_marker_genes))
     )
 

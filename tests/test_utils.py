@@ -126,7 +126,7 @@ class TestUtils:
             instruction="Test instruction",
             model="gpt-4o-mini",
             response_format=OutputForTesting,
-            max_tokens=100,
+            max_completion_tokens=100,
         )
 
         assert response is not None
