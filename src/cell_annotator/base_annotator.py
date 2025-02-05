@@ -1,7 +1,6 @@
 """Base model class to query openAI models."""
 
-from tenacity import retry, stop_after_attempt, wait_random_exponential
-
+from cell_annotator._constants import PackageConstants
 from cell_annotator._prompts import Prompts
 from cell_annotator._response_formats import BaseOutput
 from cell_annotator.utils import _query_openai
@@ -23,7 +22,7 @@ class BaseAnnotator:
         Key of the cluster column in adata.obs.
     model
         OpenAI model name.
-    max_tokens
+    max_completion_tokens
         Maximum number of tokens the model is allowed to use.
     """
 
@@ -32,18 +31,17 @@ class BaseAnnotator:
         species: str,
         tissue: str,
         stage: str = "adult",
-        cluster_key: str = "leiden",
-        model: str = "gpt-4o-mini",
-        max_tokens: int | None = None,
+        cluster_key: str = PackageConstants.default_cluster_key,
+        model: str = PackageConstants.default_model,
+        max_completion_tokens: int | None = None,
     ):
         self.species = species
         self.tissue = tissue
         self.stage = stage
         self.cluster_key = cluster_key
         self.model = model
-        self.max_tokens = max_tokens
+        self.max_completion_tokens = max_completion_tokens
 
-    @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
     def query_openai(
         self,
         instruction: str,
@@ -74,7 +72,7 @@ class BaseAnnotator:
             model=self.model,
             response_format=response_format,
             other_messages=other_messages,
-            max_tokens=self.max_tokens,
+            max_completion_tokens=self.max_completion_tokens,
         )
 
         return response

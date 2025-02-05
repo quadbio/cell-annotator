@@ -22,7 +22,7 @@ def _query_openai(
     model: str,
     response_format: type[BaseOutput],
     other_messages: list | None = None,
-    max_tokens: int | None = None,
+    max_completion_tokens: int | None = None,
 ) -> BaseOutput:
     """
     Query the OpenAI API with the given agent description and instruction.
@@ -39,7 +39,7 @@ def _query_openai(
         Response format class to use for parsing the response.
     other_messages
         Additional messages to include in the query.
-    max_tokens
+    max_completion_tokens
         Maximum number of tokens to use for the query.
 
     Returns
@@ -53,10 +53,10 @@ def _query_openai(
     try:
         completion = client.beta.chat.completions.parse(
             model=model,
-            messages=[{"role": "developer", "content": agent_description}, {"role": "user", "content": instruction}]
-            + other_messages,
+            # messages=[{"role": "developer", "content": agent_description}, {"role": "user", "content": instruction}]
+            messages=[{"role": "user", "content": instruction}] + other_messages,
             response_format=response_format,
-            max_tokens=max_tokens,
+            max_completion_tokens=max_completion_tokens,
         )
 
         response = completion.choices[0].message
@@ -71,7 +71,7 @@ def _query_openai(
             logger.warning(failure_reason)
             return response_format.default_failure(failure_reason=failure_reason)
     except openai.LengthFinishReasonError:
-        failure_reason = "Maximum number of tokens exceeded. Try increasing `max_tokens`."
+        failure_reason = "Maximum number of tokens exceeded. Try increasing `max_completion_tokens`."
         logger.warning(failure_reason)
         return response_format.default_failure(failure_reason=failure_reason)
 
@@ -144,7 +144,7 @@ def _format_annotation(df: pd.DataFrame, filter_by: str, cell_type_key: str) -> 
     """Format the annotation DataFrame by filtering and generating summary strings."""
     filtered_df = df[df[cell_type_key] != filter_by]
     return "\n".join(
-        f' - Cluster {index}: {row["marker_genes"]} -> {row["cell_type_harmonized"]}'
+        f" - Cluster {index}: {row['marker_genes']} -> {row['cell_type_harmonized']}"
         for index, row in filtered_df.iterrows()
     )
 

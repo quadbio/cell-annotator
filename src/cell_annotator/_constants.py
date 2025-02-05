@@ -9,6 +9,8 @@ class PackageConstants:
     max_markers: int = 200
     min_markers: int = 15
     use_raw: bool = False
+    default_model: str = "gpt-4o-mini"
+    default_cluster_key: str = "leiden"
 
 
 class PromptExamples:

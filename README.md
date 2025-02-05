@@ -63,6 +63,10 @@ cell_ann = CellAnnotator(
 
 By default, this will store annotations in `adata.obs['cell_type_predicted']`. Head over to our [tutorials](https://cell-annotator.readthedocs.io/en/latest/notebooks/tutorials/index.html) to see more advanced use cases, and learn how to adapt this to your own data. You can run `CellAnnotator` for just a single sample of data, or across multiple samples. In the latter case, it will attempt to harmonize annotations across samples.
 
+## Costs and models
+
+The default model is currently `gpu-4o-mini`, which is included in [OpenAI's Free Usage Tier](https://platform.openai.com/docs/guides/rate-limits). Thus, you can get started for free and experiment with our [tutorials](https://cell-annotator.readthedocs.io/en/latest/notebooks/tutorials/index.html) and with your own data. If you want to get accurate cell type labels for complex tissues, we strongly recommend using a more powerful model, like `gpt-4o`, for which you will have to pay a small fee to OpenAI. As an orientation, running our tutorials with `gpt-4o` will cost around 0.20 USD.
+
 ## Credits
 
 This tool was inspired by [Hou et al., Nature Methods 2024](https://www.nature.com/articles/s41592-024-02235-4) and [https://github.com/VPetukhov/GPTCellAnnotator](https://github.com/VPetukhov/GPTCellAnnotator).

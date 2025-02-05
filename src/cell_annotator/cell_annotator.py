@@ -42,7 +42,7 @@ class CellAnnotator(BaseAnnotator):
         Key of the cluster column in adata.obs.
     model
         OpenAI model name.
-    max_tokens
+    max_completion_tokens
         Maximum number of tokens for OpenAI queries.
     """
 
@@ -52,12 +52,12 @@ class CellAnnotator(BaseAnnotator):
         species: str,
         tissue: str,
         stage: str = "adult",
-        cluster_key: str = "leiden",
+        cluster_key: str = PackageConstants.default_cluster_key,
         sample_key: str | None = None,
-        model: str = "gpt-4o-mini",
-        max_tokens: int | None = None,
+        model: str = PackageConstants.default_model,
+        max_completion_tokens: int | None = None,
     ):
-        super().__init__(species, tissue, stage, cluster_key, model, max_tokens)
+        super().__init__(species, tissue, stage, cluster_key, model, max_completion_tokens)
         self.adata = adata
         self.sample_key = sample_key
 
@@ -113,7 +113,7 @@ class CellAnnotator(BaseAnnotator):
                 stage=self.stage,
                 cluster_key=self.cluster_key,
                 model=self.model,
-                max_tokens=self.max_tokens,
+                max_completion_tokens=self.max_completion_tokens,
             )
 
         # sort by keys for visual pleasure
