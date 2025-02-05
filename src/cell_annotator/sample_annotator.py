@@ -135,7 +135,7 @@ class SampleAnnotator(BaseAnnotator):
 
         # filter to the top markers
         logger.debug("Writing top marker genes to `self.sample_annotators['%s'].marker_genes`.", self.sample_name)
-        self.marker_genes = self._filter_cluster_markers(min_auc=min_auc, max_markers=max_markers)
+        self._filter_cluster_markers(min_auc=min_auc, max_markers=max_markers)
 
     def _filter_clusters_by_cell_number(self, min_cells_per_cluster: int) -> None:
         removed_info = _filter_by_category_size(self.adata, column=self.cluster_key, min_size=min_cells_per_cluster)
@@ -145,7 +145,7 @@ class SampleAnnotator(BaseAnnotator):
                 logger.warning(failure_reason)
                 self.annotation_dict[cat] = PredictedCellTypeOutput.default_failure(failure_reason=failure_reason)
 
-    def _filter_cluster_markers(self, min_auc: float, max_markers: int) -> dict[str, list[str]]:
+    def _filter_cluster_markers(self, min_auc: float, max_markers: int) -> None:
         """Get top markers
 
         Parameters
@@ -157,7 +157,8 @@ class SampleAnnotator(BaseAnnotator):
 
         Returns
         -------
-        Top marker genes per cluster.
+        Updates the following attributes:
+        - `self.marker_genes`
 
         """
         if self.marker_gene_dfs is None:
@@ -168,7 +169,7 @@ class SampleAnnotator(BaseAnnotator):
             top_genes = df[df.auc > min_auc].sort_values("auc", ascending=False).head(max_markers).gene.values
             marker_genes[cluster] = list(top_genes)
 
-        return _try_sorting_dict_by_keys(marker_genes)
+        self.marker_genes = _try_sorting_dict_by_keys(marker_genes)
 
     def annotate_clusters(self, min_markers: int, expected_marker_genes: dict[str, list[str]] | None) -> None:
         """Annotate clusters based on marker genes.
@@ -203,7 +204,7 @@ class SampleAnnotator(BaseAnnotator):
         else:
             expected_markers_string = ""
 
-        actual_markers_all = "\n".join([f'- Cluster {i}: {", ".join(gs)}' for i, gs in self.marker_genes.items()])
+        actual_markers_all = "\n".join([f"- Cluster {i}: {', '.join(gs)}" for i, gs in self.marker_genes.items()])
 
         # loop over clusters to annotate
         logger.debug("Iterating over clusters to annotate.")
