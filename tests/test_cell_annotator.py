@@ -10,7 +10,8 @@ from .utils import expected_marker_genes, fibroblast_cell_types, get_example_dat
 class TestCellAnnotator:
     @pytest.fixture
     def cell_annotator(self, request):
-        n_samples = request.param  # Access the parameter value
+        # Provide a default value for n_samples if request.param is not available
+        n_samples = getattr(request, "param", 2)
         adata = get_example_data(n_cells=200, n_samples=n_samples)
         sample_key = "sample" if n_samples > 1 else None
 
@@ -59,7 +60,7 @@ class TestCellAnnotator:
     @pytest.mark.parametrize("cell_annotator", [1, 2], indirect=True)
     @pytest.mark.openai()
     def test_annotate_clusters(self, cell_annotator):
-        # The test will run three times with n_samples set to 1, 2, and 3 respectively
+        # The test will run twice with n_samples set to 1 and 2 respectively
         assert os.getenv("OPENAI_API_KEY"), "OpenAI API key is not set"
         # Step 1: Call get_cluster_markers and run checks
         cell_annotator.get_cluster_markers(min_auc=0.6)
