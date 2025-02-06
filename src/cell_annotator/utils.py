@@ -144,8 +144,7 @@ def _format_annotation(df: pd.DataFrame, filter_by: str, cell_type_key: str) -> 
     """Format the annotation DataFrame by filtering and generating summary strings."""
     filtered_df = df[df[cell_type_key] != filter_by]
     return "\n".join(
-        f" - Cluster {index}: {row['marker_genes']} -> {row['cell_type_harmonized']}"
-        for index, row in filtered_df.iterrows()
+        f" - Cluster {index}: {row['marker_genes']} -> {row[cell_type_key]}" for index, row in filtered_df.iterrows()
     )
 
 

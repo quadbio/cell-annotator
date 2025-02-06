@@ -223,7 +223,7 @@ class CellAnnotator(BaseAnnotator):
         """
         if self.expected_marker_genes is None:
             logger.debug(
-                "Querying expected cell type markers wiht default parameters. Run `get_expected_cell_type_markers` for more control. "
+                "Querying expected cell type markers with default parameters. Run `get_expected_cell_type_markers` for more control. "
             )
             self.get_expected_cell_type_markers()
 
@@ -242,7 +242,7 @@ class CellAnnotator(BaseAnnotator):
             logger.info("Only one sample found. No need to harmonize annotations.")
             self.cell_type_key = "cell_type"
 
-        # write the annotatation results back to self.adata
+        # write the annotation results back to self.adata
         self._update_adata_annotations(key_added=key_added)
 
         return self
