@@ -60,10 +60,9 @@ class TestUtils:
             {
                 "marker_genes": ["gene1", "gene2"],
                 "cell_type_harmonized": ["type1", "type2"],
-                "cell_type_key": ["A", "B"],
             }
         )
-        formatted = _format_annotation(df, filter_by="A", cell_type_key="cell_type_key")
+        formatted = _format_annotation(df, filter_by="type1", cell_type_key="cell_type_harmonized")
         assert formatted == " - Cluster 1: gene2 -> type2"
 
     def test_filter_by_category_size(self):
