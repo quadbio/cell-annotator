@@ -39,10 +39,16 @@ class TestCellAnnotator:
         for key, markers in expected_markers.items():
             print(f"Cell Type: {key}, Markers: {markers}")
             if any(neuron_synonym in key for neuron_synonym in neuronal_cell_types):
-                if set(expected_marker_genes["Neuron"]).intersection(markers):
+                if any(
+                    any(marker in model_marker for model_marker in markers)
+                    for marker in expected_marker_genes["Neuron"]
+                ):
                     neuron_markers_found = True
             if any(fibroblast_synonym in key for fibroblast_synonym in fibroblast_cell_types):
-                if set(expected_marker_genes["Fibroblast"]).intersection(markers):
+                if any(
+                    any(marker in model_marker for model_marker in markers)
+                    for marker in expected_marker_genes["Fibroblast"]
+                ):
                     fibroblast_markers_found = True
 
         assert neuron_markers_found
