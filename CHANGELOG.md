@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning][]. Full commit history is avai
 #### Added
 
 -   Added tests for the single-sample case {pr}`29`.
+-   Refer to issues and PRs with sphinx {pr}`30`.
 
 #### Removed
 
