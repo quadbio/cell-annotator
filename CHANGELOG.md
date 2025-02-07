@@ -11,6 +11,24 @@ and this project adheres to [Semantic Versioning][]. Full commit history is avai
 
 ## Version 0.1
 
+### Unreleased
+
+### 0.1.3 (2025-02-07)
+
+#### Added
+
+- Added tests for the single-sample case {pr}`29`.
+- Refer to issues and PRs with sphinx {pr}`30`.
+
+#### Removed
+
+- Removed `tenacity` for query retries {pr}`28`.
+
+#### Fixed
+
+- Fixed `_get_annotation_summary_string` for the single-sample case {pr}`29`.
+- Fixed the expected cell type marker test by adding additional marker genes {pr}`28`.
+
 ### 0.1.2 (2025-01-29)
 
 #### Added
