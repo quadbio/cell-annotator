@@ -68,7 +68,8 @@ By default, this will store annotations in `adata.obs['cell_type_predicted']`. H
 The default model is currently `gpt-4o-mini`, which is included in [OpenAI's Free Usage Tier](https://platform.openai.com/docs/guides/rate-limits). Thus, you can get started for free and experiment with our [tutorials](https://cell-annotator.readthedocs.io/en/latest/notebooks/tutorials/index.html) and with your own data. If you want to get accurate cell type labels for complex tissues, we strongly recommend using more powerful models, like `gpt-4o`, or reasoning models like `o3-mini`, for which you will have to pay a small fee to OpenAI. As an orientation, running both tutorials with `o3-mini` will cost around 1 USD.
 
 ## Data privacy
-This package sends cluster marker genes to OpenAI, but no actual gene expression values. In addition, it sends the `species` and `tissue` you define. Make sure your usage of this package aligns with your institutions guidelines on data privacy and AI models. 
+
+This package sends cluster marker genes to OpenAI, but no actual gene expression values. In addition, it sends the `species` and `tissue` you define. Make sure your usage of this package aligns with your institutions guidelines on data privacy and AI models.
 
 ## Credits
 
