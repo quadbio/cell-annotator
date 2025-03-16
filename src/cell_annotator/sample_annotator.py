@@ -121,8 +121,6 @@ class SampleAnnotator(BaseAnnotator):
             rsc.tl.rank_genes_groups_logreg(
                 self.adata, groupby=self.cluster_key, use_raw=use_raw, n_genes=PackageConstants.max_markers
             )
-        elif use_rapids:
-            raise ValueError("Rapids only supports `method='logreg'`.")
         else:
             # Compute AUC scores on CPU
             logger.debug("Computing marker genes per cluster on CPU using method `%s`.", method)
