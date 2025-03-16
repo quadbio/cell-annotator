@@ -139,7 +139,7 @@ def _get_auc(
     if use_rapids:
         if not RAPIDS_AVAILABLE:
             raise ImportError(
-                "RAPIDS libraries (CuPy and cuML) are not installed. Please install them to use GPU acceleration."
+                "RAPIDS libraries (CuPy and cuML) are not installed. Please install them through `rapids_singlecell` to use GPU acceleration. You can follow the guide from https://rapids-singlecell.readthedocs.io/en/latest/Installation.html"
             )
 
         # Transfer data to GPU

@@ -13,6 +13,13 @@ from cell_annotator._response_formats import BaseOutput, CellTypeMappingOutput, 
 from cell_annotator.base_annotator import BaseAnnotator
 from cell_annotator.utils import _filter_by_category_size, _get_auc, _get_specificity, _try_sorting_dict_by_keys
 
+try:
+    import rapids_singlecell as rsc
+
+    RAPIDS_AVAILABLE = True
+except ImportError:
+    RAPIDS_AVAILABLE = False
+
 
 class SampleAnnotator(BaseAnnotator):
     """
@@ -105,10 +112,26 @@ class SampleAnnotator(BaseAnnotator):
         # filter out very small clusters
         self._filter_clusters_by_cell_number(min_cells_per_cluster)
 
-        logger.debug("Computing marker genes per cluster using method `%s`.", method)
-        sc.tl.rank_genes_groups(
-            self.adata, groupby=self.cluster_key, method=method, use_raw=use_raw, n_genes=PackageConstants.max_markers
-        )
+        if use_rapids:
+            if not RAPIDS_AVAILABLE:
+                raise ImportError(
+                    "`rapids_singelcell` is not installed. Please install it following the instructions from https://rapids-singlecell.readthedocs.io/en/latest/Installation.html"
+                )
+            logger.debug("Computing marker genes per cluster on GPU using method `logreg`.")
+            rsc.tl.rank_genes_groups_logreg(
+                self.adata, groupby=self.cluster_key, use_raw=use_raw, n_genes=PackageConstants.max_markers
+            )
+
+        else:
+            # Compute AUC scores on CPU
+            logger.debug("Computing marker genes per cluster on CPU using method `%s`.", method)
+            sc.tl.rank_genes_groups(
+                self.adata,
+                groupby=self.cluster_key,
+                method=method,
+                use_raw=use_raw,
+                n_genes=PackageConstants.max_markers,
+            )
 
         marker_dfs = {}
         logger.debug("Iterating over clusters to compute specificity and AUC values.")
