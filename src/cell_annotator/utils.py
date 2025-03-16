@@ -158,8 +158,10 @@ def _get_auc(
 
 def _try_sorting_dict_by_keys(unsorted_dict: dict):
     def extract_number(key):
+        # Convert the key to a string if it's not already
+        key_str = str(key)
         # Extract the first numeric part of the string using regex
-        match = re.search(r"\d+", key)
+        match = re.search(r"\d+", key_str)
         return int(match.group()) if match else float("inf")  # Use a high value for keys without numbers
 
     try:
