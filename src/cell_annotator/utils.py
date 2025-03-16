@@ -15,6 +15,14 @@ from cell_annotator._constants import PackageConstants
 from cell_annotator._logging import logger
 from cell_annotator._response_formats import BaseOutput
 
+try:
+    import cupy as cp
+    from cuml.metrics import roc_auc_score as gpu_roc_auc_score
+
+    RAPIDS_AVAILABLE = True
+except ImportError:
+    RAPIDS_AVAILABLE = False
+
 
 def _query_openai(
     agent_description: str,
@@ -113,7 +121,13 @@ def _get_specificity(
     return 1 - fpr
 
 
-def _get_auc(genes: np.ndarray | Sequence[str], clust_mask: np.ndarray, adata: sc.AnnData, use_raw: bool = True):
+def _get_auc(
+    genes: np.ndarray | Sequence[str],
+    clust_mask: np.ndarray,
+    adata: sc.AnnData,
+    use_raw: bool = True,
+    use_rapids: bool = False,
+):
     if use_raw:
         values = adata.raw[:, genes].X
     else:
@@ -122,7 +136,24 @@ def _get_auc(genes: np.ndarray | Sequence[str], clust_mask: np.ndarray, adata: s
     if issparse(values):
         values = values.toarray()
 
-    return np.array([roc_auc_score(clust_mask, x) for x in values.T])
+    if use_rapids:
+        if not RAPIDS_AVAILABLE:
+            raise ImportError(
+                "RAPIDS libraries (CuPy and cuML) are not installed. Please install them to use GPU acceleration."
+            )
+
+        # Transfer data to GPU
+        values_gpu = cp.asarray(values)
+        clust_mask_gpu = cp.asarray(clust_mask, dtype=cp.float32)
+
+        # Compute AUC scores on GPU
+        auc_scores = cp.array([gpu_roc_auc_score(clust_mask_gpu, values_gpu[:, i]) for i in range(values_gpu.shape[1])])
+
+        # Transfer results back to CPU
+        return cp.asnumpy(auc_scores)
+    else:
+        # Compute AUC scores on CPU
+        return np.array([roc_auc_score(clust_mask, x) for x in values.T])
 
 
 def _try_sorting_dict_by_keys(unsorted_dict: dict):

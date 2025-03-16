@@ -74,6 +74,7 @@ class SampleAnnotator(BaseAnnotator):
         min_auc: float = 0.7,
         max_markers: int = 7,
         use_raw: bool = PackageConstants.use_raw,
+        use_rapids: bool = False,
     ) -> None:
         """Get marker genes per cluster
 
@@ -91,6 +92,8 @@ class SampleAnnotator(BaseAnnotator):
             Maximum number of markers
         use_raw
             Use raw data
+        use_rapids
+            Whether to use rapids for GPU acceleration
 
         Returns
         -------
@@ -125,7 +128,7 @@ class SampleAnnotator(BaseAnnotator):
 
             # compute AUCs
             logger.debug("Computing AUC for cluster %s", cli)
-            auc = _get_auc(genes=genes, clust_mask=clust_mask, adata=self.adata, use_raw=use_raw)
+            auc = _get_auc(genes=genes, clust_mask=clust_mask, adata=self.adata, use_raw=use_raw, use_rapids=use_rapids)
             marker_dfs[cli] = DataFrame({"gene": genes, "specificity": specificity, "auc": auc})
 
         logger.debug(

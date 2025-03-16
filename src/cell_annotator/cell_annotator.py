@@ -169,6 +169,7 @@ class CellAnnotator(BaseAnnotator):
         min_auc: float = 0.7,
         max_markers: int = 7,
         use_raw: bool = PackageConstants.use_raw,
+        use_rapids: bool = False,
     ) -> None:
         """Get marker genes per cluster
 
@@ -184,6 +185,8 @@ class CellAnnotator(BaseAnnotator):
             Maximum number of markers
         use_raw
             Use raw data
+        use_rapids
+            Whether to use rapids for GPU acceleration
 
         Returns
         -------
@@ -200,6 +203,7 @@ class CellAnnotator(BaseAnnotator):
                 min_auc=min_auc,
                 max_markers=max_markers,
                 use_raw=use_raw,
+                use_rapids=use_rapids,
             )
 
     def annotate_clusters(self, min_markers: int = 2, key_added: str = "cell_type_predicted"):
@@ -350,7 +354,7 @@ class CellAnnotator(BaseAnnotator):
         if assign_colors:
             global_names_and_colors = self._get_cluster_colors(clusters=cell_type_list, unknown_key=unknown_key)
         else:
-            global_names_and_colors = {cell_type: "" for cell_type in cell_type_list}
+            global_names_and_colors = dict.fromkeys(cell_type_list, "")
 
         label_sets = _get_consistent_ordering(self.adata, global_names_and_colors, keys)
 
