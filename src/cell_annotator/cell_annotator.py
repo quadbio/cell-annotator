@@ -199,7 +199,7 @@ class CellAnnotator(BaseAnnotator):
 
         if use_rapids and method != "logreg":
             logger.warning(
-                "Rapids acceleration is only available for method `logreg`. Running `rank_genes_groups` on CPU instead"
+                "Rapids acceleration is only available for method `logreg`. Running `rank_genes_groups` on CPU instead (AUC computation will still be GPU accelerated. )"
             )
         for annotator in tqdm(self.sample_annotators.values()):
             annotator.get_cluster_markers(
