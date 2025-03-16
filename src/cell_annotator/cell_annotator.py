@@ -65,7 +65,7 @@ class CellAnnotator(BaseAnnotator):
         self.expected_cell_types: list[str] = []
         self.expected_marker_genes: dict[str, list[str]] | None = None
         self.annotated: bool = False
-        self.cell_type_key: str | None = None
+        self.cell_type_key: str = PackageConstants.cell_type_key
         self.global_cell_type_list: list[str] | None = None
 
         # laod environmental variables
@@ -222,7 +222,6 @@ class CellAnnotator(BaseAnnotator):
         - `self.annotation_df`
         - `self.adata.obs[key_added]`
         - `self.annotated`
-        - `self.cell_type_key`
 
         """
         if self.expected_marker_genes is None:
@@ -239,12 +238,7 @@ class CellAnnotator(BaseAnnotator):
         self.annotated = True
 
         # harmonize annotations across samples if necessary
-        if len(self.sample_annotators) > 1:
-            self._harmonize_annotations()
-            self.cell_type_key = "cell_type_harmonized"
-        else:
-            logger.info("Only one sample found. No need to harmonize annotations.")
-            self.cell_type_key = "cell_type"
+        self._harmonize_annotations()
 
         # write the annotation results back to self.adata
         self._update_adata_annotations(key_added=key_added)
