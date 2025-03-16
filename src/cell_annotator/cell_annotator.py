@@ -196,6 +196,10 @@ class CellAnnotator(BaseAnnotator):
 
         """
         logger.info("Iterating over samples to compute cluster marker genes. ")
+
+        if use_rapids and method != "logreg":
+            logger.warning("Rapids acceleration is only available for method `logreg`. Running on CPU instead")
+            use_rapids = False
         for annotator in tqdm(self.sample_annotators.values()):
             annotator.get_cluster_markers(
                 method=method,

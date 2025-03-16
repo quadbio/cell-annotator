@@ -112,16 +112,17 @@ class SampleAnnotator(BaseAnnotator):
         # filter out very small clusters
         self._filter_clusters_by_cell_number(min_cells_per_cluster)
 
-        if use_rapids:
+        if use_rapids and method == "logreg":
             if not RAPIDS_AVAILABLE:
                 raise ImportError(
                     "`rapids_singelcell` is not installed. Please install it following the instructions from https://rapids-singlecell.readthedocs.io/en/latest/Installation.html"
                 )
-            logger.debug("Computing marker genes per cluster on GPU using method `logreg`.")
+            logger.debug("Computing marker genes per cluster on GPU using method `%s`.", method)
             rsc.tl.rank_genes_groups_logreg(
                 self.adata, groupby=self.cluster_key, use_raw=use_raw, n_genes=PackageConstants.max_markers
             )
-
+        elif use_rapids:
+            raise ValueError("Rapids only supports `method='logreg'`.")
         else:
             # Compute AUC scores on CPU
             logger.debug("Computing marker genes per cluster on CPU using method `%s`.", method)
