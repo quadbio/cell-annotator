@@ -23,10 +23,10 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
-  "openai",
+  "openai>=1.66",
   "python-dotenv",
   "rich",
-  "scanpy",
+  "scanpy>=1.11",
   # for debug logging (referenced from the issue template)
   "session-info",
 ]
@@ -34,6 +34,7 @@ optional-dependencies.dev = [
   "pre-commit",
   "twine>=4.0.2",
 ]
+
 optional-dependencies.doc = [
   "docutils>=0.8,!=0.18.*,!=0.19.*",
   "ipykernel",
@@ -50,6 +51,10 @@ optional-dependencies.doc = [
   "sphinxcontrib-bibtex>=1",
   "sphinxext-opengraph",
 ]
+optional-dependencies.gpu = [
+  "rapids-singlecell>=0.12",
+]
+
 optional-dependencies.test = [
   "coverage",
   "pytest",

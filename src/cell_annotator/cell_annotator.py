@@ -65,7 +65,7 @@ class CellAnnotator(BaseAnnotator):
         self.expected_cell_types: list[str] = []
         self.expected_marker_genes: dict[str, list[str]] | None = None
         self.annotated: bool = False
-        self.cell_type_key: str | None = None
+        self.cell_type_key: str = PackageConstants.cell_type_key
         self.global_cell_type_list: list[str] | None = None
 
         # laod environmental variables
@@ -169,6 +169,7 @@ class CellAnnotator(BaseAnnotator):
         min_auc: float = 0.7,
         max_markers: int = 7,
         use_raw: bool = PackageConstants.use_raw,
+        use_rapids: bool = False,
     ) -> None:
         """Get marker genes per cluster
 
@@ -184,6 +185,8 @@ class CellAnnotator(BaseAnnotator):
             Maximum number of markers
         use_raw
             Use raw data
+        use_rapids
+            Whether to use rapids for GPU acceleration
 
         Returns
         -------
@@ -193,6 +196,11 @@ class CellAnnotator(BaseAnnotator):
 
         """
         logger.info("Iterating over samples to compute cluster marker genes. ")
+
+        if use_rapids and method != "logreg":
+            logger.warning(
+                "Rapids acceleration is only available for method `logreg`. Running `rank_genes_groups` on CPU instead (AUC computation will still be GPU accelerated. )"
+            )
         for annotator in tqdm(self.sample_annotators.values()):
             annotator.get_cluster_markers(
                 method=method,
@@ -200,6 +208,7 @@ class CellAnnotator(BaseAnnotator):
                 min_auc=min_auc,
                 max_markers=max_markers,
                 use_raw=use_raw,
+                use_rapids=use_rapids,
             )
 
     def annotate_clusters(self, min_markers: int = 2, key_added: str = "cell_type_predicted"):
@@ -218,7 +227,6 @@ class CellAnnotator(BaseAnnotator):
         - `self.annotation_df`
         - `self.adata.obs[key_added]`
         - `self.annotated`
-        - `self.cell_type_key`
 
         """
         if self.expected_marker_genes is None:
@@ -235,12 +243,7 @@ class CellAnnotator(BaseAnnotator):
         self.annotated = True
 
         # harmonize annotations across samples if necessary
-        if len(self.sample_annotators) > 1:
-            self._harmonize_annotations()
-            self.cell_type_key = "cell_type_harmonized"
-        else:
-            logger.info("Only one sample found. No need to harmonize annotations.")
-            self.cell_type_key = "cell_type"
+        self._harmonize_annotations()
 
         # write the annotation results back to self.adata
         self._update_adata_annotations(key_added=key_added)
@@ -350,7 +353,7 @@ class CellAnnotator(BaseAnnotator):
         if assign_colors:
             global_names_and_colors = self._get_cluster_colors(clusters=cell_type_list, unknown_key=unknown_key)
         else:
-            global_names_and_colors = {cell_type: "" for cell_type in cell_type_list}
+            global_names_and_colors = dict.fromkeys(cell_type_list, "")
 
         label_sets = _get_consistent_ordering(self.adata, global_names_and_colors, keys)
 

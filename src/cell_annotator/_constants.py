@@ -11,6 +11,7 @@ class PackageConstants:
     use_raw: bool = False
     default_model: str = "gpt-4o-mini"
     default_cluster_key: str = "leiden"
+    cell_type_key: str = "cell_type_harmonized"
 
 
 class PromptExamples:
