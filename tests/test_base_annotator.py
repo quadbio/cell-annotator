@@ -2,7 +2,6 @@ from unittest.mock import patch
 
 import pytest
 
-from cell_annotator._prompts import Prompts
 from cell_annotator._response_formats import OutputForTesting
 from cell_annotator.base_annotator import BaseAnnotator
 
@@ -24,7 +23,7 @@ class TestBaseAnnotator:
         mock_response = OutputForTesting(parsed_response="parsed_response")
         mock_query_openai.return_value = mock_response
 
-        agent_description = Prompts.AGENT_DESCRIPTION.format(species="human")
+        agent_description = base_annotator.prompts.get_agent_description()
         response = base_annotator.query_openai(instruction="Test instruction", response_format=OutputForTesting)
 
         print("Agent Description:", agent_description)
