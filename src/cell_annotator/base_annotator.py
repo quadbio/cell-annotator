@@ -41,6 +41,7 @@ class BaseAnnotator:
         self.cluster_key = cluster_key
         self.model = model
         self.max_completion_tokens = max_completion_tokens
+        self.prompts = Prompts(species=species, tissue=tissue, stage=stage)
 
     def query_openai(
         self,
@@ -64,7 +65,7 @@ class BaseAnnotator:
         -------
         Parsed response.
         """
-        agent_description = Prompts.AGENT_DESCRIPTION.format(species=self.species)
+        agent_description = self.prompts.get_cell_type_prompt()
 
         response = _query_openai(
             agent_description=agent_description,

@@ -8,7 +8,6 @@ from scanpy.tools._rank_genes_groups import _Method
 
 from cell_annotator._constants import PackageConstants
 from cell_annotator._logging import logger
-from cell_annotator._prompts import Prompts
 from cell_annotator._response_formats import BaseOutput, CellTypeMappingOutput, PredictedCellTypeOutput
 from cell_annotator.base_annotator import BaseAnnotator
 from cell_annotator.utils import _filter_by_category_size, _get_auc, _get_specificity, _try_sorting_dict_by_keys
@@ -219,10 +218,7 @@ class SampleAnnotator(BaseAnnotator):
                 actual_markers_cluster_string = ", ".join(actual_markers_cluster)
 
                 # fill in the annotation prompt
-                annotation_prompt = Prompts.ANNOTATION_PROMPT.format(
-                    species=self.species,
-                    tissue=self.tissue,
-                    stage=self.stage,
+                annotation_prompt = self.prompts.get_annotation_prompt(
                     actual_markers_all=actual_markers_all,
                     cluster_id=cluster,
                     actual_markers_cluster=actual_markers_cluster_string,
@@ -273,7 +269,7 @@ class SampleAnnotator(BaseAnnotator):
 
         logger.debug("Iterating over clusters to map local annotations to global naming scheme.")
         for cat in local_cell_type_mapping.keys():
-            mapping_prompt = Prompts.MAPPING_PROMPT.format(
+            mapping_prompt = self.prompts.get_mapping_prompt(
                 global_cell_type_list=", ".join(global_cell_type_list),
                 local_cell_type_list=", ".join(local_cell_type_mapping.keys()),
                 current_cell_type=cat,
