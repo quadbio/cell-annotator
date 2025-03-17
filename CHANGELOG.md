@@ -15,45 +15,45 @@ and this project adheres to [Semantic Versioning][]. Full commit history is avai
 
 #### Added
 
--   Use `rapids_singlecell`, `cupy` and `cuml` to accelerate cluster marker computation on GPUs {pr}`37`.
--   Add the possibility to softly enforce adherence to expected cell types {pr}`42`.
+- Use `rapids_singlecell`, `cupy` and `cuml` to accelerate cluster marker computation on GPUs {pr}`37`.
+- Add the possibility to softly enforce adherence to expected cell types {pr}`42`.
 
 #### Changed
 
--   Run cluster label harmonization also for a single sample {pr}`37`.
--   Re-format prompts into a dataclass {pr}`42`.
+- Run cluster label harmonization also for a single sample {pr}`37`.
+- Re-format prompts into a dataclass {pr}`42`.
 
 #### Fixed
 
--   Fixed a bug with integer sample labels {pr}`37`.
+- Fixed a bug with integer sample labels {pr}`37`.
 
 ### 0.1.3 (2025-02-07)
 
 #### Added
 
--   Added tests for the single-sample case {pr}`29`.
--   Refer to issues and PRs with sphinx {pr}`30`.
+- Added tests for the single-sample case {pr}`29`.
+- Refer to issues and PRs with sphinx {pr}`30`.
 
 #### Removed
 
--   Removed `tenacity` for query retries {pr}`28`.
+- Removed `tenacity` for query retries {pr}`28`.
 
 #### Fixed
 
--   Fixed `_get_annotation_summary_string` for the single-sample case {pr}`29`.
--   Fixed the expected cell type marker test by adding additional marker genes {pr}`28`.
+- Fixed `_get_annotation_summary_string` for the single-sample case {pr}`29`.
+- Fixed the expected cell type marker test by adding additional marker genes {pr}`28`.
 
 ### 0.1.2 (2025-01-29)
 
 #### Added
 
--   Update the documentation, in particular the installation instructions.
+- Update the documentation, in particular the installation instructions.
 
 ### 0.1.1 (2025-01-29)
 
 #### Added
 
--   Initial push to PyPI
+- Initial push to PyPI
 
 ### 0.1.0 (2025-01-29)
 
