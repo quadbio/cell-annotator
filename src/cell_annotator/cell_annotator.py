@@ -208,7 +208,9 @@ class CellAnnotator(BaseAnnotator):
                 use_rapids=use_rapids,
             )
 
-    def annotate_clusters(self, min_markers: int = 2, key_added: str = "cell_type_predicted"):
+    def annotate_clusters(
+        self, min_markers: int = 2, restrict_to_expected: bool = False, key_added: str = "cell_type_predicted"
+    ):
         """Annotate clusters based on marker genes.
 
         Parameters
@@ -217,6 +219,8 @@ class CellAnnotator(BaseAnnotator):
             Minimal number of required marker genes per cluster.
         key_added
             Name of the key in .obs where updated annotations will be written
+        restrict_to_expected
+            If True, only use expected cell types for annotation.
 
         Returns
         -------
@@ -234,7 +238,11 @@ class CellAnnotator(BaseAnnotator):
 
         logger.info("Iterating over samples to annotate clusters. ")
         for annotator in tqdm(self.sample_annotators.values()):
-            annotator.annotate_clusters(min_markers=min_markers, expected_marker_genes=self.expected_marker_genes)
+            annotator.annotate_clusters(
+                min_markers=min_markers,
+                restrict_to_expected=restrict_to_expected,
+                expected_marker_genes=self.expected_marker_genes,
+            )
 
         # set the annotated flag to True
         self.annotated = True

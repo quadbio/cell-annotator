@@ -195,7 +195,9 @@ class SampleAnnotator(BaseAnnotator):
 
         self.marker_genes = _try_sorting_dict_by_keys(marker_genes)
 
-    def annotate_clusters(self, min_markers: int, expected_marker_genes: dict[str, list[str]] | None) -> None:
+    def annotate_clusters(
+        self, min_markers: int, expected_marker_genes: dict[str, list[str]] | None, restrict_to_expected: bool = False
+    ) -> None:
         """Annotate clusters based on marker genes.
 
         Parameters
@@ -206,6 +208,8 @@ class SampleAnnotator(BaseAnnotator):
             Minimum number of requires marker genes per cluster.
         expected_marker_genes
             Expected marker genes per cell type.
+        restrict_to_expected
+            If True, only use expected cell types for annotation.
 
         Returns
         -------
@@ -248,6 +252,7 @@ class SampleAnnotator(BaseAnnotator):
                     cluster_id=cluster,
                     actual_markers_cluster=actual_markers_cluster_string,
                     expected_markers=expected_markers_string,
+                    restrict_to_expected=restrict_to_expected,
                 )
 
                 self.annotation_dict[cluster] = self.query_openai(
