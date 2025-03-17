@@ -16,10 +16,12 @@ and this project adheres to [Semantic Versioning][]. Full commit history is avai
 #### Added
 
 - Use `rapids_singlecell`, `cupy` and `cuml` to accelerate cluster marker computation on GPUs {pr}`37`.
+- Add the possibility to softly enforce adherence to expected cell types {pr}`42`.
 
 #### Changed
 
 - Run cluster label harmonization also for a single sample {pr}`37`.
+- Re-format prompts into a dataclass {pr}`42`.
 
 #### Fixed
 

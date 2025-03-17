@@ -12,7 +12,7 @@
 [badge-pre-commit]: https://results.pre-commit.ci/badge/github/quadbio/cell-annotator/main.svg
 [badge-pypi]: https://img.shields.io/pypi/v/cell-annotator.svg
 
-A tool to annotate cell types in scRNA-seq data based on marker genes using OpenAI models.
+CellAnnotator is an [scverse ecosystem package](https://scverse.org/packages/#ecosystem), designed to annotate cell types in scRNA-seq data based on marker genes using OpenAI models.
 
 ## Key features
 

@@ -7,9 +7,8 @@ from dotenv import load_dotenv
 from scanpy.tools._rank_genes_groups import _Method
 from tqdm.auto import tqdm
 
-from cell_annotator._constants import PackageConstants, PromptExamples
+from cell_annotator._constants import PackageConstants
 from cell_annotator._logging import logger
-from cell_annotator._prompts import Prompts
 from cell_annotator._response_formats import CellTypeColorOutput, CellTypeListOutput, ExpectedMarkerGeneOutput
 from cell_annotator.base_annotator import BaseAnnotator
 from cell_annotator.sample_annotator import SampleAnnotator
@@ -133,11 +132,9 @@ class CellAnnotator(BaseAnnotator):
         - `self.expected_cell_types`
         - `self.expected_marker_genes`
         """
-        cell_type_prompt = Prompts.CELL_TYPE_PROMPT.format(species=self.species, tissue=self.tissue, stage=self.stage)
-
         logger.info("Querying cell types.")
         res_types = self.query_openai(
-            instruction=cell_type_prompt,
+            instruction=self.prompts.get_cell_type_prompt(),
             response_format=CellTypeListOutput,
         )
 
@@ -146,12 +143,12 @@ class CellAnnotator(BaseAnnotator):
 
         marker_gene_prompt = [
             {"role": "assistant", "content": "; ".join(self.expected_cell_types) if self.expected_cell_types else ""},
-            {"role": "user", "content": Prompts.CELL_TYPE_MARKER_PROMPT.format(n_markers=n_markers)},
+            {"role": "user", "content": self.prompts.get_cell_type_marker_prompt(n_markers)},
         ]
 
         logger.info("Querying cell type markers.")
         res_markers = self.query_openai(
-            instruction=cell_type_prompt,
+            instruction=self.prompts.get_cell_type_prompt(),
             other_messages=marker_gene_prompt,
             response_format=ExpectedMarkerGeneOutput,
         )
@@ -211,7 +208,9 @@ class CellAnnotator(BaseAnnotator):
                 use_rapids=use_rapids,
             )
 
-    def annotate_clusters(self, min_markers: int = 2, key_added: str = "cell_type_predicted"):
+    def annotate_clusters(
+        self, min_markers: int = 2, restrict_to_expected: bool = False, key_added: str = "cell_type_predicted"
+    ):
         """Annotate clusters based on marker genes.
 
         Parameters
@@ -220,6 +219,8 @@ class CellAnnotator(BaseAnnotator):
             Minimal number of required marker genes per cluster.
         key_added
             Name of the key in .obs where updated annotations will be written
+        restrict_to_expected
+            If True, only use expected cell types for annotation.
 
         Returns
         -------
@@ -237,7 +238,11 @@ class CellAnnotator(BaseAnnotator):
 
         logger.info("Iterating over samples to annotate clusters. ")
         for annotator in tqdm(self.sample_annotators.values()):
-            annotator.annotate_clusters(min_markers=min_markers, expected_marker_genes=self.expected_marker_genes)
+            annotator.annotate_clusters(
+                min_markers=min_markers,
+                restrict_to_expected=restrict_to_expected,
+                expected_marker_genes=self.expected_marker_genes,
+            )
 
         # set the annotated flag to True
         self.annotated = True
@@ -300,7 +305,7 @@ class CellAnnotator(BaseAnnotator):
             categories = annotator.annotation_df["cell_type"].unique()
             cell_types.update(cat for cat in categories if cat != unknown_key)
 
-        deduplication_prompt = Prompts.DUPLICATE_REMOVAL_PROMPT.format(list_with_duplicates=", ".join(cell_types))
+        deduplication_prompt = self.prompts.get_duplicate_removal_prompt(list_with_duplicates=", ".join(cell_types))
 
         # query openai
         logger.info("Querying cell-type label de-duplication.")
@@ -389,11 +394,7 @@ class CellAnnotator(BaseAnnotator):
         """
         # format the current annotations sets as a string and prepare the query prompt
         unique_cell_types = _get_unique_cell_types(self.adata, keys, unknown_key)
-        order_prompt = Prompts.ORDER_PROMPT.format(
-            unique_cell_types=", ".join(unique_cell_types),
-            example_unordered=PromptExamples.unordered_cell_types,
-            example_ordered=PromptExamples.ordered_cell_types,
-        )
+        order_prompt = self.prompts.get_order_prompt(unique_cell_types=", ".join(unique_cell_types))
 
         # query openai and format the response as a dict
         logger.info("Querying label ordering.")
@@ -431,16 +432,11 @@ class CellAnnotator(BaseAnnotator):
             raise ValueError(f"Invalid type for 'clusters': {type(clusters)}")
 
         cluster_names = ", ".join(cl for cl in cluster_list if cl != unknown_key)
-        color_prompt = Prompts.COLOR_PROMPT.format(
-            cluster_names=cluster_names,
-            example_cell_types=", ".join(PromptExamples.color_mapping_example.keys()),
-            example_color_assignment="; ".join(
-                f"{key}: {value}" for key, value in PromptExamples.color_mapping_example.items()
-            ),
-        )
 
         logger.info("Querying cluster colors.")
-        response = self.query_openai(instruction=color_prompt, response_format=CellTypeColorOutput)
+        response = self.query_openai(
+            instruction=self.prompts.get_color_prompt(cluster_names), response_format=CellTypeColorOutput
+        )
         color_dict = {
             item.original_cell_type_label: item.assigned_color for item in response.cell_type_to_color_mapping
         }

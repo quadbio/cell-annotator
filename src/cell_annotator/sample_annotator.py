@@ -8,7 +8,6 @@ from scanpy.tools._rank_genes_groups import _Method
 
 from cell_annotator._constants import PackageConstants
 from cell_annotator._logging import logger
-from cell_annotator._prompts import Prompts
 from cell_annotator._response_formats import BaseOutput, CellTypeMappingOutput, PredictedCellTypeOutput
 from cell_annotator.base_annotator import BaseAnnotator
 from cell_annotator.utils import _filter_by_category_size, _get_auc, _get_specificity, _try_sorting_dict_by_keys
@@ -196,7 +195,9 @@ class SampleAnnotator(BaseAnnotator):
 
         self.marker_genes = _try_sorting_dict_by_keys(marker_genes)
 
-    def annotate_clusters(self, min_markers: int, expected_marker_genes: dict[str, list[str]] | None) -> None:
+    def annotate_clusters(
+        self, min_markers: int, expected_marker_genes: dict[str, list[str]] | None, restrict_to_expected: bool = False
+    ) -> None:
         """Annotate clusters based on marker genes.
 
         Parameters
@@ -207,6 +208,8 @@ class SampleAnnotator(BaseAnnotator):
             Minimum number of requires marker genes per cluster.
         expected_marker_genes
             Expected marker genes per cell type.
+        restrict_to_expected
+            If True, only use expected cell types for annotation.
 
         Returns
         -------
@@ -244,14 +247,12 @@ class SampleAnnotator(BaseAnnotator):
                 actual_markers_cluster_string = ", ".join(actual_markers_cluster)
 
                 # fill in the annotation prompt
-                annotation_prompt = Prompts.ANNOTATION_PROMPT.format(
-                    species=self.species,
-                    tissue=self.tissue,
-                    stage=self.stage,
+                annotation_prompt = self.prompts.get_annotation_prompt(
                     actual_markers_all=actual_markers_all,
                     cluster_id=cluster,
                     actual_markers_cluster=actual_markers_cluster_string,
                     expected_markers=expected_markers_string,
+                    restrict_to_expected=restrict_to_expected,
                 )
 
                 self.annotation_dict[cluster] = self.query_openai(
@@ -298,7 +299,7 @@ class SampleAnnotator(BaseAnnotator):
 
         logger.debug("Iterating over clusters to map local annotations to global naming scheme.")
         for cat in local_cell_type_mapping.keys():
-            mapping_prompt = Prompts.MAPPING_PROMPT.format(
+            mapping_prompt = self.prompts.get_mapping_prompt(
                 global_cell_type_list=", ".join(global_cell_type_list),
                 local_cell_type_list=", ".join(local_cell_type_mapping.keys()),
                 current_cell_type=cat,
