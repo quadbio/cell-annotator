@@ -13,6 +13,18 @@ and this project adheres to [Semantic Versioning][]. Full commit history is avai
 
 ### Unreleased
 
+#### Added
+
+- Use `rapids_singlecell`, `cupy` and `cuml` to accelerate cluster marker computation on GPUs {pr}`37`.
+
+#### Changed
+
+- Run cluster label harmonization also for a single sample {pr}`37`.
+
+#### Fixed
+
+- Fixed a bug with integer sample labels {pr}`37`.
+
 ### 0.1.3 (2025-02-07)
 
 #### Added
