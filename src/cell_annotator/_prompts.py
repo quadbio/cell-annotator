@@ -45,7 +45,7 @@ class Prompts:
 
         {restriction_clause}
 
-        Determine cell type and state for cluster {cluster_id} (markers {actual_markers_cluster})
+        Determine cell type and state for cluster {cluster_id} (markers {actual_markers_cluster}, in descending order of AUC, i.e. early genes in the list are more informative.)
 
         ### Output format:
         ```
