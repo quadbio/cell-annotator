@@ -5,12 +5,14 @@
 [![Documentation][badge-docs]][documentation]
 [![Pre-commit.ci][badge-pre-commit]][pre-commit]
 [![PyPI][badge-pypi]][pypi]
+[![Downloads][badge-downloads]][downloads]
 
 [badge-tests]: https://img.shields.io/github/actions/workflow/status/quadbio/cell-annotator/test.yaml?branch=main
 [badge-coverage]: https://codecov.io/gh/quadbio/cell-annotator/branch/main/graph/badge.svg
 [badge-docs]: https://img.shields.io/readthedocs/cell-annotator
 [badge-pre-commit]: https://results.pre-commit.ci/badge/github/quadbio/cell-annotator/main.svg
 [badge-pypi]: https://img.shields.io/pypi/v/cell-annotator.svg
+[badge-downloads]: https://static.pepy.tech/badge/cell-annotator
 
 CellAnnotator is an [scverse ecosystem package](https://scverse.org/packages/#ecosystem), designed to annotate cell types in scRNA-seq data based on marker genes using OpenAI models.
 
@@ -86,3 +88,4 @@ If you found a bug, please use the [issue tracker][].
 [documentation]: https://cell-annotator.readthedocs.io
 [pre-commit]: https://results.pre-commit.ci/latest/github/quadbio/cell-annotator/main
 [pypi]: https://pypi.org/project/cell-annotator/
+[downloads]: https://pepy.tech/project/cell-annotator
