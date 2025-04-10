@@ -1,10 +1,9 @@
 [build-system]
 build-backend = "hatchling.build"
-requires = [ "hatchling" ]
+requires = [ "hatch-vcs", "hatchling" ]
 
 [project]
 name = "cell-annotator"
-version = "0.0.1"
 description = "A tool to annotate cell types"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -22,8 +21,12 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
+dynamic = [ "version" ]
 dependencies = [
-  "anndata",
+  "openai>=1.66",
+  "python-dotenv",
+  "rich",
+  "scanpy>=1.11",
   # for debug logging (referenced from the issue template)
   "session-info2",
 ]
@@ -31,6 +34,7 @@ optional-dependencies.dev = [
   "pre-commit",
   "twine>=4.0.2",
 ]
+
 optional-dependencies.doc = [
   "docutils>=0.8,!=0.18.*,!=0.19.*",
   "ipykernel",
@@ -47,14 +51,21 @@ optional-dependencies.doc = [
   "sphinxcontrib-bibtex>=1",
   "sphinxext-opengraph",
 ]
+optional-dependencies.gpu = [
+  "rapids-singlecell>=0.12",
+]
+
 optional-dependencies.test = [
   "coverage",
   "pytest",
 ]
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://cell-annotator.readthedocs.io/"
-urls.Homepage = "https://github.com/quadbio/cell-annotator"
+urls.Homepage = "https://cell-annotator.readthedocs.io/"
 urls.Source = "https://github.com/quadbio/cell-annotator"
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.envs.default]
 installer = "uv"
@@ -110,6 +121,9 @@ lint.per-file-ignores."tests/*" = [ "D" ]
 lint.pydocstyle.convention = "numpy"
 
 [tool.pytest.ini_options]
+markers = [
+  "openai: mark a test querying OpenAI models.",
+]
 testpaths = [ "tests" ]
 xfail_strict = true
 addopts = [
