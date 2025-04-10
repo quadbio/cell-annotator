@@ -28,7 +28,7 @@ dependencies = [
   "rich",
   "scanpy>=1.11",
   # for debug logging (referenced from the issue template)
-  "session-info",
+  "session-info2",
 ]
 optional-dependencies.dev = [
   "pre-commit",
@@ -41,7 +41,7 @@ optional-dependencies.doc = [
   "ipython",
   "myst-nb>=1.1",
   "pandas",
-  # Until pybtex >0.23.0 releases: https://bitbucket.org/pybtex-devs/pybtex/issues/169/
+  # Until pybtex >0.24.0 releases: https://bitbucket.org/pybtex-devs/pybtex/issues/169/
   "setuptools",
   "sphinx>=4",
   "sphinx-autodoc-typehints",
