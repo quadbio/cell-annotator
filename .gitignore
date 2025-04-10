@@ -18,3 +18,12 @@ __pycache__/
 # docs
 /docs/generated/
 /docs/_build/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Data files
+*.h5ad
+
+# Environment files
+*.env

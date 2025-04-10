@@ -1,38 +1,26 @@
-# API
-
-## Preprocessing
+# API Reference
 
 ```{eval-rst}
-.. module:: cell_annotator.pp
+The class :class:`~cell_annotator.CellAnnotator` is the main class that users interact with:
+
+.. module:: cell_annotator
 .. currentmodule:: cell_annotator
 
 .. autosummary::
     :toctree: generated
 
-    pp.basic_preproc
+    CellAnnotator
 ```
 
-## Tools
-
 ```{eval-rst}
-.. module:: cell_annotator.tl
+The following classes are more technical; :class:`~cell_annotator.SampleAnnotator` is called under the hood for each sample, and :class:`~cell_annotator.BaseAnnotator` contains basic functionality.
+
+.. module:: cell_annotator
 .. currentmodule:: cell_annotator
 
 .. autosummary::
     :toctree: generated
 
-    tl.basic_tool
-```
-
-## Plotting
-
-```{eval-rst}
-.. module:: cell_annotator.pl
-.. currentmodule:: cell_annotator
-
-.. autosummary::
-    :toctree: generated
-
-    pl.basic_plot
-    pl.BasicClass
+    SampleAnnotator
+    BaseAnnotator
 ```
