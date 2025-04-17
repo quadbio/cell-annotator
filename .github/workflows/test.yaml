@@ -62,7 +62,7 @@ jobs:
             uvx hatch test --cover --python ${{ matrix.python }} -m "not openai"
           fi
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: quadbio/cell-annotator
