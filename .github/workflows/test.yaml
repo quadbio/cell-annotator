@@ -57,12 +57,15 @@ jobs:
           DISPLAY: :42
         run: |
           if [ "${{ matrix.python }}" == "3.12" ] && [ -z "${{ matrix.pip-flags }}" ]; then
-            uvx hatch test --cover --python ${{ matrix.python }}
+            uvx hatch test --cover --python ${{ matrix.python }} --cov-report=xml
           else
-            uvx hatch test --cover --python ${{ matrix.python }} -m "not openai"
+            uvx hatch test --cover --python ${{ matrix.python }} -m "not openai" --cov-report=xml
           fi
+      - name: Debug Coverage Files
+        run: find . -name "*.xml" -o -name ".coverage*"
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: quadbio/cell-annotator
+          files: coverage.xml
