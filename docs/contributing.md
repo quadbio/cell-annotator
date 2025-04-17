@@ -67,13 +67,12 @@ to integrate the changes into yours.
 While the [pre-commit.ci][] is useful, we strongly encourage installing and running pre-commit locally first to understand its usage.
 
 Finally, most editors have an _autoformat on save_ feature.
-Consider enabling this option for [ruff][ruff-editors] and [prettier][prettier-editors].
+Consider enabling this option for [ruff][ruff-editors] and [biome][biome-editors].
 
 [pre-commit]: https://pre-commit.com/
 [pre-commit.ci]: https://pre-commit.ci/
 [ruff-editors]: https://docs.astral.sh/ruff/integrations/
-
-[prettier-editors]: https://prettier.io/docs/en/editors.html
+[biome-editors]: https://biomejs.dev/guides/integrate-in-editor/
 
 (writing-tests)=
 
@@ -159,7 +158,7 @@ This project uses [sphinx][] with the following features:
 - [Numpy-style docstrings][numpydoc] (through the [napoloen][numpydoc-napoleon] extension).
 - Jupyter notebooks as tutorials through [myst-nb][] (See [Tutorials with myst-nb](#tutorials-with-myst-nb-and-jupyter-notebooks))
 - [sphinx-autodoc-typehints][], to automatically reference annotated input and output types
-- Citations (like {cite:p}`virshup2023scverse`) can be included with [sphinxcontrib-bibtex](https://sphinxcontrib-bibtex.readthedocs.io/)
+- Citations (like {cite:p}`Virshup_2023`) can be included with [sphinxcontrib-bibtex](https://sphinxcontrib-bibtex.readthedocs.io/)
 
 See scanpy’s {doc}`scanpy:dev/documentation` for more information on how to write your own.
 
@@ -183,6 +182,10 @@ please check out [this feature request][issue-render-notebooks] in the `cookiecu
 
 #### Hints
 
+- If you refer to objects from other packages, please add an entry to `intersphinx_mapping` in `docs/conf.py`.
+  Only if you do so can sphinx automatically create a link to the external documentation.
+- If building the documentation fails because of a missing link that is outside your control,
+  you can add an entry to the `nitpick_ignore` list in `docs/conf.py`
 - If you refer to objects from other packages, please add an entry to `intersphinx_mapping` in `docs/conf.py`.
   Only if you do so can sphinx automatically create a link to the external documentation.
 - If building the documentation fails because of a missing link that is outside your control,
