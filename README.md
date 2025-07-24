@@ -67,7 +67,7 @@ By default, this will store annotations in `adata.obs['cell_type_predicted']`. H
 
 ## Costs and models
 
-The default model is currently `gpt-4o-mini`, which is included in [OpenAI's Free Usage Tier](https://platform.openai.com/docs/guides/rate-limits). Thus, you can get started for free and experiment with our [tutorials](https://cell-annotator.readthedocs.io/en/latest/notebooks/tutorials/index.html) and with your own data. If you want to get accurate cell type labels for complex tissues, we strongly recommend using more powerful models, like `gpt-4o`, or reasoning models like `o3-mini`, for which you will have to pay a small fee to OpenAI. As an orientation, running both tutorials with `o3-mini` will cost around 1 USD.
+The default model is currently `gpt-4o-mini`, which is included in [OpenAI's Free Usage Tier](https://platform.openai.com/docs/guides/rate-limits). Thus, you can get started for free and experiment with our [tutorials](https://cell-annotator.readthedocs.io/en/latest/notebooks/tutorials/index.html) and with your own data. If you want to get accurate cell type labels for complex tissues, we strongly recommend using more powerful models, like `gpt-4o`, `gpt-4.1`, etc, or reasoning models like `o3-mini`, for which you will have to pay a small fee to OpenAI. As an orientation, running both tutorials with `o3-mini` will cost around 1 USD. Take a look at the [OpenAI API docs](https://platform.openai.com/docs/models) to learn more about the different available models.
 
 ## Data privacy
 

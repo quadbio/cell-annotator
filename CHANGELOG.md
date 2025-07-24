@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning][]. Full commit history is avai
 
 ### Unreleased
 
+### 0.1.5 (2025-07-24)
+
+#### Changed
+- Update tutorials to use `gpt-4.1` {pr}`51`
+
 ### 0.1.4 (2025-03-28)
 
 #### Added
