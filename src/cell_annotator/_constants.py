@@ -9,7 +9,12 @@ class PackageConstants:
     max_markers: int = 200
     min_markers: int = 15
     use_raw: bool = False
-    default_model: str = "gpt-4o-mini"
+    default_model: str = "gpt-4o-mini"  # Legacy default for backward compatibility
+    default_models: dict[str, str] = {
+        "openai": "gpt-4o-mini",
+        "gemini": "gemini-2.5-flash",
+        "anthropic": "claude-3-haiku",
+    }
     default_cluster_key: str = "leiden"
     cell_type_key: str = "cell_type_harmonized"
 

@@ -39,9 +39,11 @@ class SampleAnnotator(BaseAnnotator):
     cluster_key
         Key of the cluster column in adata.obs (inherited from BaseAnnotator).
     model
-        OpenAI model name (inherited from BaseAnnotator).
+        Model name (inherited from BaseAnnotator).
     max_completion_tokens
         Maximum number of tokens the model is allowed to use.
+    provider
+        LLM provider (inherited from BaseAnnotator).
 
     """
 
@@ -53,10 +55,12 @@ class SampleAnnotator(BaseAnnotator):
         tissue: str,
         stage: str = "adult",
         cluster_key: str = PackageConstants.default_cluster_key,
-        model: str = PackageConstants.default_model,
+        model: str | None = None,
         max_completion_tokens: int | None = None,
+        provider: str | None = None,
+        _skip_validation: bool = False,
     ):
-        super().__init__(species, tissue, stage, cluster_key, model, max_completion_tokens)
+        super().__init__(species, tissue, stage, cluster_key, model, max_completion_tokens, provider, _skip_validation)
         self.adata = adata
         self.sample_name = sample_name
 
@@ -255,7 +259,7 @@ class SampleAnnotator(BaseAnnotator):
                     restrict_to_expected=restrict_to_expected,
                 )
 
-                self.annotation_dict[cluster] = self.query_openai(
+                self.annotation_dict[cluster] = self.query_llm(
                     instruction=annotation_prompt,
                     response_format=PredictedCellTypeOutput,
                 )
@@ -305,7 +309,7 @@ class SampleAnnotator(BaseAnnotator):
                 current_cell_type=cat,
             )
 
-            response = self.query_openai(
+            response = self.query_llm(
                 instruction=mapping_prompt,
                 response_format=CellTypeMappingOutput,
             )

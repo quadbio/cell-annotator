@@ -1,9 +1,6 @@
 """Cell annotator class for annotating cell types across multiple samples."""
 
-import os
-
 import scanpy as sc
-from dotenv import load_dotenv
 from scanpy.tools._rank_genes_groups import _Method
 from tqdm.auto import tqdm
 
@@ -40,9 +37,11 @@ class CellAnnotator(BaseAnnotator):
     cluster_key
         Key of the cluster column in adata.obs.
     model
-        OpenAI model name.
+        Model name (e.g., 'gpt-4o-mini', 'gemini-2.5-flash'). If None, uses default model for the provider.
     max_completion_tokens
-        Maximum number of tokens for OpenAI queries.
+        Maximum number of tokens for LLM queries.
+    provider
+        LLM provider ('openai', 'gemini', or 'anthropic'). If None, auto-detects from model name or uses first available provider.
     """
 
     def __init__(
@@ -53,10 +52,11 @@ class CellAnnotator(BaseAnnotator):
         stage: str = "adult",
         cluster_key: str = PackageConstants.default_cluster_key,
         sample_key: str | None = None,
-        model: str = PackageConstants.default_model,
+        model: str | None = None,
         max_completion_tokens: int | None = None,
+        provider: str | None = None,
     ):
-        super().__init__(species, tissue, stage, cluster_key, model, max_completion_tokens)
+        super().__init__(species, tissue, stage, cluster_key, model, max_completion_tokens, provider)
         self.adata = adata
         self.sample_key = sample_key
 
@@ -66,17 +66,6 @@ class CellAnnotator(BaseAnnotator):
         self.annotated: bool = False
         self.cell_type_key: str = PackageConstants.cell_type_key
         self.global_cell_type_list: list[str] | None = None
-
-        # laod environmental variables
-        load_dotenv()
-
-        # Check if the environment variable OPENAI_API_KEY is set
-        if os.getenv("OPENAI_API_KEY"):
-            logger.info("The environment variable `OPENAI_API_KEY` is set (that's good).")
-        else:
-            logger.warning(
-                "The environment variable `OPENAI_API_KEY` is not set. Head over to https://platform.openai.com/api-keys to get a key and store it in an .env file."
-            )
 
         # Initialize SampleAnnotators for each batch
         self._initialize_sample_annotators()
@@ -113,6 +102,8 @@ class CellAnnotator(BaseAnnotator):
                 cluster_key=self.cluster_key,
                 model=self.model,
                 max_completion_tokens=self.max_completion_tokens,
+                provider=self._provider_name,
+                _skip_validation=True,  # Skip validation since parent already validated
             )
 
         # sort by keys for visual pleasure
@@ -133,7 +124,7 @@ class CellAnnotator(BaseAnnotator):
         - `self.expected_marker_genes`
         """
         logger.info("Querying cell types.")
-        res_types = self.query_openai(
+        res_types = self.query_llm(
             instruction=self.prompts.get_cell_type_prompt(),
             response_format=CellTypeListOutput,
         )
@@ -147,7 +138,7 @@ class CellAnnotator(BaseAnnotator):
         ]
 
         logger.info("Querying cell type markers.")
-        res_markers = self.query_openai(
+        res_markers = self.query_llm(
             instruction=self.prompts.get_cell_type_prompt(),
             other_messages=marker_gene_prompt,
             response_format=ExpectedMarkerGeneOutput,
@@ -307,9 +298,9 @@ class CellAnnotator(BaseAnnotator):
 
         deduplication_prompt = self.prompts.get_duplicate_removal_prompt(list_with_duplicates=", ".join(cell_types))
 
-        # query openai
+        # query llm
         logger.info("Querying cell-type label de-duplication.")
-        response = self.query_openai(
+        response = self.query_llm(
             instruction=deduplication_prompt,
             response_format=CellTypeListOutput,
         )
@@ -327,7 +318,7 @@ class CellAnnotator(BaseAnnotator):
         """Assign consistent ordering across cell type annotations.
 
         Note that for multiple samples with many clusters each, this typically requires a more powerful model
-        like `gpt-4o` to work well. This method replaces underscores with spaces.
+        like `gpt-4o` (OpenAI) or `gemini-2.5-flash` (Google) to work well. This method replaces underscores with spaces.
 
         Parameters
         ----------
@@ -379,7 +370,7 @@ class CellAnnotator(BaseAnnotator):
                 self.adata.uns[f"{obs_key}_colors"] = name_and_color.values()
 
     def _get_cluster_ordering(self, keys: list[str], unknown_key: str = PackageConstants.unknown_name) -> list[str]:
-        """Query OpenAI for relational cluster ordering.
+        """Query LLM for relational cluster ordering.
 
         Parameters
         ----------
@@ -396,9 +387,9 @@ class CellAnnotator(BaseAnnotator):
         unique_cell_types = _get_unique_cell_types(self.adata, keys, unknown_key)
         order_prompt = self.prompts.get_order_prompt(unique_cell_types=", ".join(unique_cell_types))
 
-        # query openai and format the response as a dict
+        # query llm and format the response as a dict
         logger.info("Querying label ordering.")
-        response = self.query_openai(
+        response = self.query_llm(
             instruction=order_prompt,
             response_format=CellTypeListOutput,
         )
@@ -408,7 +399,7 @@ class CellAnnotator(BaseAnnotator):
     def _get_cluster_colors(
         self, clusters: str | list[str], unknown_key: str = PackageConstants.unknown_name
     ) -> dict[str, str]:
-        """Query OpenAI for relational cluster colors.
+        """Query LLM for relational cluster colors.
 
         Parameters
         ----------
@@ -434,7 +425,7 @@ class CellAnnotator(BaseAnnotator):
         cluster_names = ", ".join(cl for cl in cluster_list if cl != unknown_key)
 
         logger.info("Querying cluster colors.")
-        response = self.query_openai(
+        response = self.query_llm(
             instruction=self.prompts.get_color_prompt(cluster_names), response_format=CellTypeColorOutput
         )
         color_dict = {

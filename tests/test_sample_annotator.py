@@ -23,12 +23,17 @@ class TestSampleAnnotator:
             cluster_key="leiden",
             model="gpt-4o-mini",
             max_completion_tokens=500,
+            provider="openai",  # Explicitly use OpenAI provider
         )
 
-    @patch("cell_annotator.sample_annotator.SampleAnnotator.query_openai")
-    def test_annotate_clusters(self, mock_query_openai, sample_annotator):
+    @patch("cell_annotator.sample_annotator.SampleAnnotator.query_llm")
+    def test_annotate_clusters(self, mock_query_llm, sample_annotator):
+        """Test annotate_clusters specifically with OpenAI provider."""
         mock_response = PredictedCellTypeOutput(cell_type="Neuron")
-        mock_query_openai.return_value = mock_response
+        mock_query_llm.return_value = mock_response
+
+        # Verify we're using OpenAI provider
+        assert sample_annotator._provider_name == "openai"
 
         sample_annotator.marker_genes = {
             "0": expected_marker_genes["Neuron"][:2],
@@ -39,10 +44,14 @@ class TestSampleAnnotator:
         assert sample_annotator.annotation_dict["0"].cell_type == "Neuron"
         assert sample_annotator.annotation_dict["1"].cell_type == "Neuron"
 
-    @patch("cell_annotator.sample_annotator.SampleAnnotator.query_openai")
-    def test_harmonize_annotations(self, mock_query_openai, sample_annotator):
+    @patch("cell_annotator.sample_annotator.SampleAnnotator.query_llm")
+    def test_harmonize_annotations(self, mock_query_llm, sample_annotator):
+        """Test harmonize_annotations specifically with OpenAI provider."""
         mock_response = CellTypeMappingOutput(mapped_global_name="Neuron")
-        mock_query_openai.return_value = mock_response
+        mock_query_llm.return_value = mock_response
+
+        # Verify we're using OpenAI provider
+        assert sample_annotator._provider_name == "openai"
 
         sample_annotator.annotation_df = pd.DataFrame({"cell_type": ["type1", "type2"]})
         sample_annotator.harmonize_annotations(global_cell_type_list=["Neuron", "Astrocyte"])

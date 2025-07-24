@@ -4,16 +4,13 @@ import re
 from collections.abc import Sequence
 
 import numpy as np
-import openai
 import pandas as pd
 import scanpy as sc
-from openai import OpenAI
 from scipy.sparse import issparse
 from sklearn.metrics import roc_auc_score
 
 from cell_annotator._constants import PackageConstants
 from cell_annotator._logging import logger
-from cell_annotator._response_formats import BaseOutput
 
 try:
     import cupy as cp
@@ -22,69 +19,6 @@ try:
     RAPIDS_AVAILABLE = True
 except ImportError:
     RAPIDS_AVAILABLE = False
-
-
-def _query_openai(
-    agent_description: str,
-    instruction: str,
-    model: str,
-    response_format: type[BaseOutput],
-    other_messages: list | None = None,
-    max_completion_tokens: int | None = None,
-) -> BaseOutput:
-    """
-    Query the OpenAI API with the given agent description and instruction.
-
-    Parameters
-    ----------
-    agent_description
-        Description of the agent.
-    instruction
-        Instruction for the agent.
-    model
-        Model to use for the query. Examples: 'gpt-4o-mini', 'gpt-4o'.
-    response_format
-        Response format class to use for parsing the response.
-    other_messages
-        Additional messages to include in the query.
-    max_completion_tokens
-        Maximum number of tokens to use for the query.
-
-    Returns
-    -------
-    Parsed response from the OpenAI API.
-    """
-    client = OpenAI()
-
-    if other_messages is None:
-        other_messages = []
-    try:
-        completion = client.beta.chat.completions.parse(
-            model=model,
-            # messages=[{"role": "developer", "content": agent_description}, {"role": "user", "content": instruction}]
-            messages=[{"role": "user", "content": instruction}] + other_messages,
-            response_format=response_format,
-            max_completion_tokens=max_completion_tokens,
-        )
-
-        response = completion.choices[0].message
-        if response.parsed:
-            return response.parsed
-        elif response.refusal:
-            failure_reason = f"Model refused to respond: {response.refusal}"
-            logger.warning(failure_reason)
-            return response_format.default_failure(failure_reason=failure_reason)
-        else:
-            failure_reason = "Unknown model failure."
-            logger.warning(failure_reason)
-            return response_format.default_failure(failure_reason=failure_reason)
-    except openai.LengthFinishReasonError:
-        failure_reason = "Maximum number of tokens exceeded. Try increasing `max_completion_tokens`."
-        logger.warning(failure_reason)
-        return response_format.default_failure(failure_reason=failure_reason)
-
-    except openai.OpenAIError as e:
-        raise e
 
 
 def _get_specificity(
