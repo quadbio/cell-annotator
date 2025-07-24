@@ -83,6 +83,9 @@ This tool was inspired by [Hou et al., Nature Methods 2024](https://www.nature.c
 
 If you found a bug, please use the [issue tracker][].
 
+## Citation
+Please use our [zenodo][] entry to cite this software.
+
 [mambaforge]: https://github.com/conda-forge/miniforge#mambaforge
 [issue tracker]: https://github.com/quadbio/cell-annotator/issues
 [tests]: https://github.com/quadbio/cell-annotator/actions/workflows/test.yaml
