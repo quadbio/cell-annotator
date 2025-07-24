@@ -23,7 +23,7 @@ class APIKeyManager:
             "description": "OpenAI GPT models",
         },
         "gemini": {
-            "env_var": "GOOGLE_API_KEY",
+            "env_var": "GEMINI_API_KEY",
             "setup_url": "https://aistudio.google.com/apikey",
             "description": "Google Gemini models",
         },
@@ -192,35 +192,37 @@ class APIKeyManager:
         if model:
             accessible, detected_provider = self.validate_model_access(model)
             if accessible:
-                logger.info(f"✅ Model '{model}' is accessible via {detected_provider}")
+                logger.info("✅ Model '%s' is accessible via %s", model, detected_provider)
                 return True
             elif detected_provider:
                 logger.warning(
-                    f"❌ Model '{model}' requires {detected_provider} API key. "
-                    f"{self.get_setup_instructions(detected_provider)}"
+                    "❌ Model '%s' requires %s API key. %s",
+                    model,
+                    detected_provider,
+                    self.get_setup_instructions(detected_provider),
                 )
                 return False
             else:
-                logger.warning(f"❌ Unknown model '{model}'")
+                logger.warning("❌ Unknown model '%s'", model)
                 return False
 
         if provider:
             if self.validate_provider(provider):
-                logger.info(f"✅ {provider} API key is configured")
+                logger.info("✅ %s API key is configured", provider)
                 return True
             else:
-                logger.warning(f"❌ {self.get_setup_instructions(provider)}")
+                logger.warning("❌ %s", self.get_setup_instructions(provider))
                 return False
 
         # Check all providers
         available = self.get_available_providers()
         if available:
-            logger.info(f"✅ Available providers: {', '.join(available)}")
+            logger.info("✅ Available providers: %s", ", ".join(available))
             return True
         else:
             logger.warning("❌ No API keys found! Please configure at least one provider.")
             for prov in self.PROVIDER_CONFIG:
-                logger.info(f"   {self.get_setup_instructions(prov)}")
+                logger.info("   %s", self.get_setup_instructions(prov))
             return False
 
 

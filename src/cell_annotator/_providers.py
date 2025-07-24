@@ -85,9 +85,9 @@ class OpenAIProvider(LLMProvider):
             if response.parsed:
                 return response.parsed
             elif response.refusal:
-                failure_reason = f"Model refused to respond: {response.refusal}"
-                logger.warning(failure_reason)
-                return response_format.default_failure(failure_reason=failure_reason)
+                failure_reason = "Model refused to respond: %s"
+                logger.warning(failure_reason, response.refusal)
+                return response_format.default_failure(failure_reason=failure_reason % response.refusal)
             else:
                 failure_reason = "Unknown model failure."
                 logger.warning(failure_reason)

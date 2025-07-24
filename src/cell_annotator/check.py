@@ -68,11 +68,11 @@ INSTALL_HINTS = types.SimpleNamespace(
 )
 
 CHECKERS = {
-    "openai": Checker("openai", vmin="1.66", install_hint=INSTALL_HINTS.openai),
+    "openai": Checker("openai", vmin="1.90", install_hint=INSTALL_HINTS.openai),
     "google-genai": Checker(
-        "google.genai", package_name="google-genai", vmin=None, install_hint=INSTALL_HINTS.google_genai
+        "google.genai", package_name="google-genai", vmin="1.27", install_hint=INSTALL_HINTS.google_genai
     ),
-    "anthropic": Checker("anthropic", vmin=None, install_hint=INSTALL_HINTS.anthropic),
+    "anthropic": Checker("anthropic", vmin="0.59", install_hint=INSTALL_HINTS.anthropic),
     "rapids-singlecell": Checker(
         "rapids_singlecell", package_name="rapids-singlecell", vmin="0.12", install_hint=INSTALL_HINTS.rapids_singlecell
     ),
