@@ -58,7 +58,7 @@ class Checker:
 INSTALL_HINTS = types.SimpleNamespace(
     openai="To use OpenAI models, install with: pip install 'cell-annotator[openai]' or pip install openai>=1.66",
     google_genai="To use Google Gemini models, install with: pip install 'cell-annotator[gemini]' "
-    "or pip install google-generativeai",
+    "or pip install google-genai",
     anthropic="To use Anthropic Claude models, install with: pip install 'cell-annotator[anthropic]' "
     "or pip install anthropic",
     rapids_singlecell="To speed up analysis on GPU, install with: pip install 'cell-annotator[gpu]' "
@@ -70,7 +70,7 @@ INSTALL_HINTS = types.SimpleNamespace(
 CHECKERS = {
     "openai": Checker("openai", vmin="1.66", install_hint=INSTALL_HINTS.openai),
     "google-genai": Checker(
-        "google.genai", package_name="google-generativeai", vmin=None, install_hint=INSTALL_HINTS.google_genai
+        "google.genai", package_name="google-genai", vmin=None, install_hint=INSTALL_HINTS.google_genai
     ),
     "anthropic": Checker("anthropic", vmin=None, install_hint=INSTALL_HINTS.anthropic),
     "rapids-singlecell": Checker(
