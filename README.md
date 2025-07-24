@@ -6,6 +6,7 @@
 [![Pre-commit.ci][badge-pre-commit]][pre-commit]
 [![PyPI][badge-pypi]][pypi]
 [![Downloads][badge-downloads]][downloads]
+[![Zenodo][badge-zenodo]][zenodo]
 
 [badge-tests]: https://img.shields.io/github/actions/workflow/status/quadbio/cell-annotator/test.yaml?branch=main
 [badge-coverage]: https://codecov.io/gh/quadbio/cell-annotator/branch/main/graph/badge.svg
@@ -13,6 +14,7 @@
 [badge-pre-commit]: https://results.pre-commit.ci/badge/github/quadbio/cell-annotator/main.svg
 [badge-pypi]: https://img.shields.io/pypi/v/cell-annotator.svg
 [badge-downloads]: https://static.pepy.tech/badge/cell-annotator
+[badge-zenodo]: https://zenodo.org/badge/899554552.svg
 
 CellAnnotator is an [scverse ecosystem package](https://scverse.org/packages/#ecosystem), designed to annotate cell types in scRNA-seq data based on marker genes using OpenAI models.
 
@@ -81,6 +83,9 @@ This tool was inspired by [Hou et al., Nature Methods 2024](https://www.nature.c
 
 If you found a bug, please use the [issue tracker][].
 
+## Citation
+Please use our [zenodo][] entry to cite this software.
+
 [mambaforge]: https://github.com/conda-forge/miniforge#mambaforge
 [issue tracker]: https://github.com/quadbio/cell-annotator/issues
 [tests]: https://github.com/quadbio/cell-annotator/actions/workflows/test.yaml
@@ -89,3 +94,4 @@ If you found a bug, please use the [issue tracker][].
 [pre-commit]: https://results.pre-commit.ci/latest/github/quadbio/cell-annotator/main
 [pypi]: https://pypi.org/project/cell-annotator/
 [downloads]: https://pepy.tech/project/cell-annotator
+[zenodo]: https://doi.org/10.5281/zenodo.16411381
