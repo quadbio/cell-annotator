@@ -10,6 +10,10 @@ from cell_annotator.check import check_deps
 class LLMProvider(ABC):
     """Abstract base class for LLM providers."""
 
+    def __repr__(self) -> str:
+        """Return a string representation of the provider."""
+        return f"{self.__class__.__name__}()"
+
     @abstractmethod
     def query(
         self,
@@ -50,6 +54,10 @@ class OpenAIProvider(LLMProvider):
     def __init__(self) -> None:
         """Initialize OpenAI provider with dependency check."""
         check_deps("openai")
+
+    def __repr__(self) -> str:
+        """Return a string representation of the OpenAI provider."""
+        return "OpenAIProvider(models: GPT, o1, etc.)"
 
     def query(
         self,
@@ -107,6 +115,10 @@ class GeminiProvider(LLMProvider):
         """Initialize Gemini provider with dependency check."""
         check_deps("google-genai")
 
+    def __repr__(self) -> str:
+        """Return a string representation of the Gemini provider."""
+        return "GeminiProvider(models: gemini-2.0-flash-exp, gemini-1.5-pro, etc.)"
+
     def query(
         self,
         agent_description: str,
@@ -157,6 +169,10 @@ class AnthropicProvider(LLMProvider):
     def __init__(self) -> None:
         """Initialize Anthropic provider with dependency check."""
         check_deps("anthropic")
+
+    def __repr__(self) -> str:
+        """Return a string representation of the Anthropic provider."""
+        return "AnthropicProvider(models: claude-3.5-sonnet, claude-3-haiku, etc.)"
 
     def query(
         self,

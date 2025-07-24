@@ -2,6 +2,7 @@
 
 from cell_annotator._api_keys import APIKeyMixin
 from cell_annotator._constants import PackageConstants
+from cell_annotator._logging import logger
 from cell_annotator._prompts import Prompts
 from cell_annotator._providers import get_provider
 from cell_annotator._response_formats import BaseOutput
@@ -73,12 +74,44 @@ class BaseAnnotator(APIKeyMixin):
 
         # Validate provider and set up (skip if already validated by parent)
         if not _skip_validation:
-            if not self.check_api_access(model=model):
+            if not self.check_api_access(provider=provider):
                 raise ValueError(f"Cannot use model '{model}': missing API key for provider '{provider}'")
 
         self._provider = get_provider(provider)
         self._provider_name = provider
         self.model = model
+
+    def __repr__(self) -> str:
+        """Return a string representation of the BaseAnnotator."""
+        lines = []
+        lines.append(f"🧬 {self.__class__.__name__}")
+        lines.append("=" * (len(self.__class__.__name__) + 3))
+
+        # Biological context
+        lines.append(f"📋 Species: {self.species}")
+        lines.append(f"🔬 Tissue: {self.tissue}")
+        lines.append(f"⏳ Stage: {self.stage}")
+        lines.append(f"🔗 Cluster key: {self.cluster_key}")
+
+        # Model configuration
+        lines.append("")
+        lines.append(f"🤖 Provider: {self._provider_name}")
+        lines.append(f"🧠 Model: {self.model}")
+        if self.max_completion_tokens:
+            lines.append(f"🎚️ Max tokens: {self.max_completion_tokens}")
+
+        # Status
+        lines.append("")
+        try:
+            test_result = self.test_query()
+            status = "✅ Ready" if test_result else "❌ Not working"
+        except Exception as e:  # noqa: BLE001
+            # Catch all exceptions during test (API errors, invalid models, etc.)
+            logger.debug("Status check failed: %s", str(e))
+            status = "⚠️ Unknown"
+        lines.append(f"🔋 Status: {status}")
+
+        return "\n".join(lines)
 
     def _detect_provider_from_model(self, model: str) -> str:
         """
@@ -137,3 +170,50 @@ class BaseAnnotator(APIKeyMixin):
         )
 
         return response
+
+    def test_query(self) -> bool:
+        """
+        Test if the LLM setup is working correctly.
+
+        Performs a simple query to verify that the API key is valid
+        and the model can be accessed successfully.
+
+        Returns
+        -------
+        True if the test query succeeds, False otherwise.
+
+        Examples
+        --------
+        >>> annotator = BaseAnnotator(species="human", tissue="brain")
+        >>> if annotator.test_query():
+        ...     print("Setup is working!")
+        ... else:
+        ...     print("Setup failed - check API keys and model access")
+        """
+        try:
+            # Use a simple test response format with default values
+
+            class TestResponse(BaseOutput):
+                """Simple response format for testing."""
+
+                message: str = "test"  # Provide default to avoid validation errors
+
+            # Make a simple test query
+            response = self._provider.query(
+                agent_description="You are a helpful assistant.",
+                instruction="Respond with a simple greeting message.",
+                model=self.model,
+                response_format=TestResponse,
+                max_completion_tokens=1000,
+            )
+
+            # Check if we got a valid response
+            if response.reason_for_failure is None:
+                return True
+            else:
+                return False
+
+        except Exception as e:  # noqa: BLE001
+            # Catch all exceptions (API errors, network issues, etc.)
+            logger.debug("Test query failed: %s", str(e))
+            return False

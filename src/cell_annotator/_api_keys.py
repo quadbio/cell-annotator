@@ -20,7 +20,7 @@ class APIKeyManager:
         "openai": {
             "env_var": "OPENAI_API_KEY",
             "setup_url": "https://platform.openai.com/api-keys",
-            "description": "OpenAI GPT models",
+            "description": "OpenAI models (GPT, o1, etc.)",
         },
         "gemini": {
             "env_var": "GEMINI_API_KEY",
@@ -45,6 +45,29 @@ class APIKeyManager:
         """
         if auto_load_env:
             load_dotenv()
+
+    def __repr__(self) -> str:
+        """Return a string representation of the API key manager status."""
+        lines = []
+        lines.append("🔑 APIKeyManager Status")
+        lines.append("=" * 30)
+
+        availability = self.check_key_availability()
+        available_providers = self.get_available_providers()
+
+        for provider, config in self.PROVIDER_CONFIG.items():
+            status = "✅" if availability[provider] else "❌"
+            lines.append(f"{status} {provider.upper()}: {config['description']}")
+
+        lines.append("")
+        total_providers = len(self.PROVIDER_CONFIG)
+        available_count = len(available_providers)
+        lines.append(f"📊 {available_count}/{total_providers} providers configured")
+
+        if available_count > 0:
+            lines.append(f"🚀 Ready: {', '.join(available_providers)}")
+
+        return "\n".join(lines)
 
     def check_key_availability(self) -> dict[str, bool]:
         """
@@ -192,7 +215,7 @@ class APIKeyManager:
         if model:
             accessible, detected_provider = self.validate_model_access(model)
             if accessible:
-                logger.info("✅ Model '%s' is accessible via %s", model, detected_provider)
+                logger.info("✅ API key found for provider %s", detected_provider)
                 return True
             elif detected_provider:
                 logger.warning(
@@ -208,7 +231,7 @@ class APIKeyManager:
 
         if provider:
             if self.validate_provider(provider):
-                logger.info("✅ %s API key is configured", provider)
+                logger.info("✅ %s API key is available", provider.upper())
                 return True
             else:
                 logger.warning("❌ %s", self.get_setup_instructions(provider))
