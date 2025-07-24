@@ -2,11 +2,9 @@
 
 from abc import ABC, abstractmethod
 
-import openai
-from openai import OpenAI
-
 from cell_annotator._logging import logger
 from cell_annotator._response_formats import BaseOutput
+from cell_annotator.check import check_deps
 
 
 class LLMProvider(ABC):
@@ -49,6 +47,10 @@ class LLMProvider(ABC):
 class OpenAIProvider(LLMProvider):
     """OpenAI provider implementation."""
 
+    def __init__(self) -> None:
+        """Initialize OpenAI provider with dependency check."""
+        check_deps("openai")
+
     def query(
         self,
         agent_description: str,
@@ -59,6 +61,9 @@ class OpenAIProvider(LLMProvider):
         max_completion_tokens: int | None = None,
     ) -> BaseOutput:
         """Query OpenAI API."""
+        import openai
+        from openai import OpenAI
+
         client = OpenAI()
 
         if other_messages is None:
@@ -98,6 +103,10 @@ class OpenAIProvider(LLMProvider):
 class GeminiProvider(LLMProvider):
     """Google Gemini provider implementation."""
 
+    def __init__(self) -> None:
+        """Initialize Gemini provider with dependency check."""
+        check_deps("google-genai")
+
     def query(
         self,
         agent_description: str,
@@ -108,12 +117,7 @@ class GeminiProvider(LLMProvider):
         max_completion_tokens: int | None = None,
     ) -> BaseOutput:
         """Query Gemini API."""
-        try:
-            from google import genai
-        except ImportError as err:
-            raise ImportError(
-                "Google GenAI library not installed. Install with: pip install google-generativeai"
-            ) from err
+        from google import genai
 
         client = genai.Client()
 
@@ -147,11 +151,58 @@ class GeminiProvider(LLMProvider):
             return response_format.default_failure(failure_reason=failure_reason)
 
 
-# Provider registry
-PROVIDERS = {
-    "openai": OpenAIProvider(),
-    "gemini": GeminiProvider(),
-}
+class AnthropicProvider(LLMProvider):
+    """Anthropic Claude provider implementation."""
+
+    def __init__(self) -> None:
+        """Initialize Anthropic provider with dependency check."""
+        check_deps("anthropic")
+
+    def query(
+        self,
+        agent_description: str,
+        instruction: str,
+        model: str,
+        response_format: type[BaseOutput],
+        other_messages: list | None = None,
+        max_completion_tokens: int | None = None,
+    ) -> BaseOutput:
+        """Query Anthropic API."""
+        import anthropic
+
+        client = anthropic.Anthropic()
+
+        # Combine agent description with instruction
+        if agent_description:
+            full_instruction = f"{agent_description}\n\n{instruction}"
+        else:
+            full_instruction = instruction
+
+        try:
+            # Note: Anthropic doesn't have native structured output yet
+            # So we'll ask for JSON and parse manually
+            json_instruction = f"{full_instruction}\n\nPlease respond with valid JSON matching this format: {response_format.model_json_schema()}"
+
+            response = client.messages.create(
+                model=model,
+                max_tokens=max_completion_tokens or 4096,
+                messages=[{"role": "user", "content": json_instruction}],
+            )
+
+            # Parse the JSON response
+            import json
+
+            response_text = response.content[0].text
+            parsed_data = json.loads(response_text)
+            return response_format(**parsed_data)
+
+        except (ValueError, TypeError, KeyError, json.JSONDecodeError) as e:
+            failure_reason = f"Anthropic API error: {str(e)}"
+            return response_format.default_failure(failure_reason=failure_reason)
+
+
+# Provider registry - initialize lazily to avoid import errors
+_PROVIDERS = {}
 
 
 def get_provider(provider_name: str) -> LLMProvider:
@@ -161,13 +212,21 @@ def get_provider(provider_name: str) -> LLMProvider:
     Parameters
     ----------
     provider_name
-        Name of the provider ('openai' or 'gemini').
+        Name of the provider ('openai', 'gemini', or 'anthropic').
 
     Returns
     -------
     Provider instance.
     """
-    if provider_name not in PROVIDERS:
-        available = ", ".join(PROVIDERS.keys())
-        raise ValueError(f"Unknown provider '{provider_name}'. Available: {available}")
-    return PROVIDERS[provider_name]
+    if provider_name not in _PROVIDERS:
+        if provider_name == "openai":
+            _PROVIDERS[provider_name] = OpenAIProvider()
+        elif provider_name == "gemini":
+            _PROVIDERS[provider_name] = GeminiProvider()
+        elif provider_name == "anthropic":
+            _PROVIDERS[provider_name] = AnthropicProvider()
+        else:
+            available = ["openai", "gemini", "anthropic"]
+            raise ValueError(f"Unknown provider '{provider_name}'. Available: {', '.join(available)}")
+
+    return _PROVIDERS[provider_name]

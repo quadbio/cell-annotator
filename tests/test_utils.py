@@ -101,7 +101,7 @@ class TestUtils:
         with pytest.raises(ValueError):
             _validate_list_mapping(list_a, ["d", "e", "f"])
 
-    @patch("cell_annotator._providers.OpenAI")
+    @patch("openai.OpenAI")
     def test_openai_provider(self, MockOpenAI):
         """Test OpenAI provider implementation."""
         mock_client = MockOpenAI.return_value

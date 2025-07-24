@@ -23,13 +23,26 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
-  "openai>=1.66",
+  "packaging",
   "python-dotenv",
   "rich",
   "scanpy>=1.11",
   # for debug logging (referenced from the issue template)
   "session-info2",
 ]
+
+# Convenience groups combining providers
+optional-dependencies.all-providers = [
+  "anthropic",
+  "google-generativeai",
+  "openai>=1.66",
+]
+
+optional-dependencies.anthropic = [
+  "anthropic",
+]
+
+# Development dependencies
 optional-dependencies.dev = [
   "pre-commit",
   "twine>=4.0.2",
@@ -51,12 +64,22 @@ optional-dependencies.doc = [
   "sphinxcontrib-bibtex>=1",
   "sphinxext-opengraph",
 ]
+
+optional-dependencies.gemini = [
+  "google-generativeai",
+]
+# Other optional functionality
 optional-dependencies.gpu = [
   "rapids-singlecell>=0.12",
 ]
 
+# Core provider dependencies - one of these is required to use the package
+optional-dependencies.openai = [
+  "openai>=1.66",
+]
 optional-dependencies.test = [
   "coverage",
+  "openai>=1.66", # tests still use OpenAI provider
   "pytest",
 ]
 # https://docs.pypi.org/project_metadata/#project-urls

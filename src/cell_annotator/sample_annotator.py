@@ -10,14 +10,8 @@ from cell_annotator._constants import PackageConstants
 from cell_annotator._logging import logger
 from cell_annotator._response_formats import BaseOutput, CellTypeMappingOutput, PredictedCellTypeOutput
 from cell_annotator.base_annotator import BaseAnnotator
+from cell_annotator.check import check_deps
 from cell_annotator.utils import _filter_by_category_size, _get_auc, _get_specificity, _try_sorting_dict_by_keys
-
-try:
-    import rapids_singlecell as rsc
-
-    RAPIDS_AVAILABLE = True
-except ImportError:
-    RAPIDS_AVAILABLE = False
 
 
 class SampleAnnotator(BaseAnnotator):
@@ -116,10 +110,9 @@ class SampleAnnotator(BaseAnnotator):
         self._filter_clusters_by_cell_number(min_cells_per_cluster)
 
         if use_rapids and method == "logreg":
-            if not RAPIDS_AVAILABLE:
-                raise ImportError(
-                    "`rapids_singelcell` is not installed. Please install it following the instructions from https://rapids-singlecell.readthedocs.io/en/latest/Installation.html"
-                )
+            check_deps("rapids-singlecell")
+            import rapids_singlecell as rsc
+
             logger.debug("Computing marker genes per cluster on GPU using method `%s`.", method)
             rsc.tl.rank_genes_groups_logreg(
                 self.adata, groupby=self.cluster_key, use_raw=use_raw, n_genes=PackageConstants.max_markers

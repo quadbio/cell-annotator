@@ -11,14 +11,7 @@ from sklearn.metrics import roc_auc_score
 
 from cell_annotator._constants import PackageConstants
 from cell_annotator._logging import logger
-
-try:
-    import cupy as cp
-    from cuml.metrics import roc_auc_score as gpu_roc_auc_score
-
-    RAPIDS_AVAILABLE = True
-except ImportError:
-    RAPIDS_AVAILABLE = False
+from cell_annotator.check import check_deps
 
 
 def _get_specificity(
@@ -71,10 +64,9 @@ def _get_auc(
         values = values.toarray()
 
     if use_rapids:
-        if not RAPIDS_AVAILABLE:
-            raise ImportError(
-                "RAPIDS libraries (CuPy and cuML) are not installed. Please install them through `rapids_singlecell` to use GPU acceleration. You can follow the guide from https://rapids-singlecell.readthedocs.io/en/latest/Installation.html"
-            )
+        check_deps("cupy", "cuml")
+        import cupy as cp
+        from cuml.metrics import roc_auc_score as gpu_roc_auc_score
 
         # Transfer data to GPU
         values_gpu = cp.asarray(values)
