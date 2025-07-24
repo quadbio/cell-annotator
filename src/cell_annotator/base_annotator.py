@@ -171,16 +171,23 @@ class BaseAnnotator(APIKeyMixin):
 
         return response
 
-    def test_query(self) -> bool:
+    def test_query(self, return_details: bool = False) -> bool | tuple[bool, str]:
         """
         Test if the LLM setup is working correctly.
 
         Performs a simple query to verify that the API key is valid
         and the model can be accessed successfully.
 
+        Parameters
+        ----------
+        return_details
+            If True, returns (success, message) tuple with detailed information.
+            If False, returns only boolean success status.
+
         Returns
         -------
-        True if the test query succeeds, False otherwise.
+        If return_details=False: True if the test query succeeds, False otherwise.
+        If return_details=True: Tuple of (success, message) with detailed status.
 
         Examples
         --------
@@ -189,6 +196,10 @@ class BaseAnnotator(APIKeyMixin):
         ...     print("Setup is working!")
         ... else:
         ...     print("Setup failed - check API keys and model access")
+        >>>
+        >>> # Get detailed information
+        >>> success, message = annotator.test_query(return_details=True)
+        >>> print(f"Status: {success}, Details: {message}")
         """
         try:
             # Use a simple test response format with default values
@@ -209,11 +220,31 @@ class BaseAnnotator(APIKeyMixin):
 
             # Check if we got a valid response
             if response.reason_for_failure is None:
+                if return_details:
+                    return True, f"✅ Successfully queried {self._provider_name} model '{self.model}'"
                 return True
             else:
+                if return_details:
+                    return False, f"❌ Query failed: {response.reason_for_failure}"
                 return False
 
         except Exception as e:  # noqa: BLE001
             # Catch all exceptions (API errors, network issues, etc.)
-            logger.debug("Test query failed: %s", str(e))
+            error_msg = str(e)
+            logger.debug("Test query failed: %s", error_msg)
+
+            if return_details:
+                # Provide more helpful error messages based on error type
+                error_type = type(e).__name__
+                if "NotFound" in error_type or "404" in error_msg:
+                    return False, f"❌ Model '{self.model}' not found or not accessible"
+                elif "Unauthorized" in error_type or "401" in error_msg:
+                    return False, f"❌ Invalid API key for {self._provider_name}"
+                elif "RateLimited" in error_type or "429" in error_msg:
+                    return False, f"❌ Rate limited by {self._provider_name} API"
+                elif "Connection" in error_type or "Network" in error_type:
+                    return False, "❌ Network connection error"
+                else:
+                    return False, f"❌ Error: {error_msg}"
+
             return False
