@@ -345,33 +345,59 @@ class AnthropicProvider(LLMProvider):
         other_messages: list | None = None,
         max_completion_tokens: int | None = None,
     ) -> BaseOutput:
-        """Query Anthropic API."""
-        # Combine agent description with instruction
-        if agent_description:
-            full_instruction = f"{agent_description}\n\n{instruction}"
-        else:
-            full_instruction = instruction
-
+        """Query Anthropic API using tool use for structured output."""
         try:
-            # Note: Anthropic doesn't have native structured output yet
-            # So we'll ask for JSON and parse manually
-            json_instruction = f"{full_instruction}\n\nPlease respond with valid JSON matching this format: {response_format.model_json_schema()}"
+            import anthropic
+
+            # Use Anthropic's tool use system for structured output
+            # This is the recommended approach for getting structured JSON responses
+            tool_schema = {
+                "name": "structured_response",
+                "description": "Provide a structured response in the specified format",
+                "input_schema": response_format.model_json_schema(),
+            }
+
+            # Prepare messages
+            messages = []
+
+            # Add system message if provided
+            system_content = agent_description if agent_description else "You are a helpful assistant."
+
+            # Add other messages if provided
+            if other_messages:
+                messages.extend(other_messages)
+
+            # Add the main instruction
+            messages.append({"role": "user", "content": instruction})
 
             response = self.client.messages.create(
                 model=model,
                 max_tokens=max_completion_tokens or 4096,
-                messages=[{"role": "user", "content": json_instruction}],
+                system=system_content,
+                tools=[tool_schema],  # type: ignore[arg-type]
+                tool_choice={"type": "tool", "name": "structured_response"},  # type: ignore[arg-type]
+                messages=messages,
             )
 
-            # Parse the JSON response
-            import json
+            # Extract the structured response from tool use
+            if response.content and len(response.content) > 0:
+                for content_block in response.content:
+                    if hasattr(content_block, "type") and content_block.type == "tool_use":
+                        if hasattr(content_block, "input") and content_block.input:
+                            # The input contains our structured data
+                            input_data = content_block.input
+                            if isinstance(input_data, dict):
+                                return response_format(**input_data)
 
-            response_text = response.content[0].text
-            parsed_data = json.loads(response_text)
-            return response_format(**parsed_data)
+            # Fallback if no tool use found
+            failure_reason = "No structured response found in tool use output"
+            return response_format.default_failure(failure_reason=failure_reason)
 
-        except (ValueError, TypeError, KeyError, json.JSONDecodeError) as e:
+        except anthropic.AnthropicError as e:
             failure_reason = f"Anthropic API error: {str(e)}"
+            return response_format.default_failure(failure_reason=failure_reason)
+        except (ValueError, TypeError, KeyError) as e:
+            failure_reason = f"Response parsing error: {str(e)}"
             return response_format.default_failure(failure_reason=failure_reason)
 
 
