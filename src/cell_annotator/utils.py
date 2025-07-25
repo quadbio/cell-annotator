@@ -278,13 +278,21 @@ def _filter_marker_genes_to_adata(marker_genes: dict[str, list[str]], adata: sc.
     Dictionary mapping cell types to filtered lists of marker genes
     """
     available_genes = set(adata.var_names)
+    available_genes_lower = {g.lower() for g in available_genes}
+    gene_map = {g.lower(): g for g in available_genes}  # map lower-case to original
     filtered_marker_genes = {}
     total_filtered = 0
 
     for cell_type, markers in marker_genes.items():
-        original_markers = set(markers)
-        filtered_markers = [gene for gene in markers if gene in available_genes]
-        filtered_out = original_markers - set(filtered_markers)
+        filtered_markers = []
+        filtered_out = set()
+        for gene in markers:
+            gene_l = gene.lower()
+            if gene_l in available_genes_lower:
+                # Use the AnnData var_name capitalization
+                filtered_markers.append(gene_map[gene_l])
+            else:
+                filtered_out.add(gene)
 
         if filtered_out:
             total_filtered += len(filtered_out)

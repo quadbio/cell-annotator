@@ -15,9 +15,28 @@ class Prompts:
         """Generate the cell type prompt."""
         return f"Provide me a comprehensive list of cell types that are expected in {self.species} {self.tissue} at stage `{self.stage}`."
 
-    def get_cell_type_marker_prompt(self, n_markers: int) -> str:
-        """Generate the cell type marker prompt."""
-        return f"Now, for each cell type specify a list of {n_markers} marker genes that are specific to it. Make sure that you provided markers for **each** cell type you mentioned above."
+    def get_cell_type_marker_prompt(
+        self, n_markers: int, var_names: list[str] | None = None, provide_var_names: bool = True
+    ) -> str:
+        """Generate the cell type marker prompt.
+
+        Parameters
+        ----------
+        n_markers
+            Number of marker genes per cell type.
+        var_names
+            List of available gene names (from AnnData.var_names). Required if provide_var_names is True.
+        provide_var_names
+            If True, include the available gene names and instruct the model to restrict itself to this set.
+        """
+        base = f"Now, for each cell type specify a list of {n_markers} marker genes that are specific to it. Make sure that you provided markers for **each** cell type you mentioned above."
+        if provide_var_names and var_names is not None:
+            var_names_str = ", ".join(var_names)
+            return (
+                base
+                + f"\n\nOnly use marker genes from the following list of available genes (case-insensitive match):\n{var_names_str}\nIf you cannot find enough markers for a cell type, only use those that are present."
+            )
+        return base
 
     def get_annotation_prompt(
         self,
