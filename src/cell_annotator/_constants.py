@@ -12,8 +12,8 @@ class PackageConstants:
     default_model: str = "gpt-4o-mini"  # Legacy default for backward compatibility
     default_models: dict[str, str] = {
         "openai": "gpt-4o-mini",
-        "gemini": "gemini-1.5-flash",
-        "anthropic": "claude-3-haiku-20240307",
+        "gemini": "gemini-2.5-flash-lite",
+        "anthropic": "claude-3-5-haiku-20241022",
     }
     # Supported LLM providers
     supported_providers: list[str] = ["openai", "gemini", "anthropic"]

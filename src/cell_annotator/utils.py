@@ -282,6 +282,7 @@ def _filter_marker_genes_to_adata(marker_genes: dict[str, list[str]], adata: sc.
     gene_map = {g.lower(): g for g in available_genes}  # map lower-case to original
     filtered_marker_genes = {}
     total_filtered = 0
+    removed_cell_types = []
 
     logger.info("Filtering marker genes to only include those present in adata.var_names.")
     for cell_type, markers in marker_genes.items():
@@ -297,16 +298,22 @@ def _filter_marker_genes_to_adata(marker_genes: dict[str, list[str]], adata: sc.
 
         if filtered_out:
             total_filtered += len(filtered_out)
-            logger.info(
+            logger.debug(
                 "Cell type '%s': filtered %d marker genes not found in adata.var_names: %s",
                 cell_type,
                 len(filtered_out),
                 ", ".join(sorted(filtered_out)),
             )
 
-        filtered_marker_genes[cell_type] = filtered_markers
+        if filtered_markers:
+            filtered_marker_genes[cell_type] = filtered_markers
+        else:
+            removed_cell_types.append(cell_type)
 
-    if total_filtered > 0:
-        logger.info("Total marker genes filtered: %d", total_filtered)
-
+    if total_filtered > 0 or removed_cell_types:
+        logger.info(
+            "Filtered %d marker genes and removed %d cell types with no marker genes left after filtering.",
+            total_filtered,
+            len(removed_cell_types),
+        )
     return filtered_marker_genes

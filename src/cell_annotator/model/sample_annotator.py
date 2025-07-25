@@ -79,14 +79,6 @@ class SampleAnnotator(BaseAnnotator):
         lines.append(f"🔢 Clusters: {self.adata.obs[self.cluster_key].nunique()}")
         lines.append(f"🔬 Cells: {self.adata.n_obs:,}")
 
-        # Biological context (compact)
-        lines.append(f"🧬 Context: {self.species} {self.tissue} ({self.stage})")
-
-        # Model configuration
-        lines.append("")
-        lines.append(f"🤖 Provider: {self._provider_name}")
-        lines.append(f"🧠 Model: {self.model}")
-
         # Processing status
         lines.append("")
         marker_status = "✅ Computed" if self.marker_genes else "❌ Not computed"
@@ -94,15 +86,6 @@ class SampleAnnotator(BaseAnnotator):
 
         annotation_status = "✅ Complete" if self.annotation_df is not None else "❌ Not done"
         lines.append(f"🏷️  Annotation: {annotation_status}")
-
-        # LLM status (compact version)
-        try:
-            test_result = self.test_query()
-            llm_status = "✅ Ready" if test_result else "❌ Not working"
-        except Exception as e:  # noqa: BLE001
-            logger.debug("Status check failed: %s", str(e))
-            llm_status = "⚠️ Unknown"
-        lines.append(f"🔋 LLM Status: {llm_status}")
 
         return "\n".join(lines)
 
