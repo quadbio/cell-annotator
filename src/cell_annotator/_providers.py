@@ -56,12 +56,13 @@ class LLMProvider(ABC):
         Returns
         -------
         List of available model names.
+
+        Raises
+        ------
+        RuntimeError
+            If unable to retrieve model list (e.g., invalid API key, network issues).
         """
-        try:
-            return self._list_models_impl()
-        except Exception as e:  # noqa: BLE001
-            logger.warning("Failed to list models for %s: %s", self.__class__.__name__, str(e))
-            return []
+        return self._list_models_impl()
 
     @abstractmethod
     def _list_models_impl(self) -> list[str]:
@@ -99,7 +100,17 @@ class OpenAIProvider(LLMProvider):
 
     def __repr__(self) -> str:
         """Return a string representation of the OpenAI provider."""
-        return "OpenAIProvider(models: GPT, o1, etc.)"
+        try:
+            models = self.list_available_models()[:5]  # Show first 5 models
+            if models:
+                model_preview = ", ".join(models)
+                if len(self.list_available_models()) > 5:
+                    model_preview += ", ..."
+                return f"OpenAIProvider(models: {model_preview}). Call .list_available_models() for complete list."
+            else:
+                return "OpenAIProvider(models: none available). Call .list_available_models() for complete list."
+        except Exception:  # noqa: BLE001
+            return "OpenAIProvider(models: unavailable). Call .list_available_models() for details."
 
     def _list_models_impl(self) -> list[str]:
         """List available OpenAI models."""
@@ -200,7 +211,17 @@ class GeminiProvider(LLMProvider):
 
     def __repr__(self) -> str:
         """Return a string representation of the Gemini provider."""
-        return "GeminiProvider(models: gemini-2.0-flash-exp, gemini-1.5-pro, etc.)"
+        try:
+            models = self.list_available_models()[:5]  # Show first 5 models
+            if models:
+                model_preview = ", ".join(models)
+                if len(self.list_available_models()) > 5:
+                    model_preview += ", ..."
+                return f"GeminiProvider(models: {model_preview}). Call .list_available_models() for complete list."
+            else:
+                return "GeminiProvider(models: none available). Call .list_available_models() for complete list."
+        except Exception:  # noqa: BLE001
+            return "GeminiProvider(models: unavailable). Call .list_available_models() for details."
 
     def _list_models_impl(self) -> list[str]:
         """List available Gemini models."""
@@ -216,10 +237,9 @@ class GeminiProvider(LLMProvider):
                         chat_models.append(model_name)
 
             return sorted(chat_models)
-        except Exception as e:  # noqa: BLE001
-            # Fallback to known models if API call fails
-            logger.debug("Failed to list Gemini models, using fallback: %s", str(e))
-            return ["gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.5-flash-lite"]
+        except Exception as e:
+            logger.error("Failed to list Gemini models: %s", str(e))
+            raise RuntimeError("Unable to retrieve Gemini model list. Please check your API key and connection.") from e
 
     def query(
         self,
@@ -292,7 +312,17 @@ class AnthropicProvider(LLMProvider):
 
     def __repr__(self) -> str:
         """Return a string representation of the Anthropic provider."""
-        return "AnthropicProvider(models: claude-3.5-sonnet, claude-3-haiku, etc.)"
+        try:
+            models = self.list_available_models()[:5]  # Show first 5 models
+            if models:
+                model_preview = ", ".join(models)
+                if len(self.list_available_models()) > 5:
+                    model_preview += ", ..."
+                return f"AnthropicProvider(models: {model_preview}). Call .list_available_models() for complete list."
+            else:
+                return "AnthropicProvider(models: none available). Call .list_available_models() for complete list."
+        except Exception:  # noqa: BLE001
+            return "AnthropicProvider(models: unavailable). Call .list_available_models() for details."
 
     def _list_models_impl(self) -> list[str]:
         """List available Anthropic models."""
@@ -300,16 +330,11 @@ class AnthropicProvider(LLMProvider):
             models = self.client.models.list()
             model_list = [model.id for model in models.data]
             return sorted(model_list)
-        except Exception as e:  # noqa: BLE001
-            # Fallback to known models if API call fails
-            logger.debug("Failed to list Anthropic models, using fallback: %s", str(e))
-            return [
-                "claude-3-5-sonnet-20241022",
-                "claude-3-5-haiku-20241022",
-                "claude-3-opus-20240229",
-                "claude-3-sonnet-20240229",
-                "claude-3-haiku-20240307",
-            ]
+        except Exception as e:
+            logger.error("Failed to list Anthropic models: %s", str(e))
+            raise RuntimeError(
+                "Unable to retrieve Anthropic model list. Please check your API key and connection."
+            ) from e
 
     def query(
         self,
