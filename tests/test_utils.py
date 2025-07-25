@@ -107,7 +107,7 @@ class TestUtils:
         mock_client = MockOpenAI.return_value
         mock_response = MagicMock()
         mock_response.choices[0].message.parsed = OutputForTesting(parsed_response="parsed_response")
-        mock_client.beta.chat.completions.parse.return_value = mock_response
+        mock_client.chat.completions.parse.return_value = mock_response
 
         provider = OpenAIProvider()
         response = provider.query(
@@ -118,7 +118,7 @@ class TestUtils:
         )
 
         assert response.parsed_response == "parsed_response"
-        mock_client.beta.chat.completions.parse.assert_called_once()
+        mock_client.chat.completions.parse.assert_called_once()
 
     @pytest.mark.openai()
     def test_openai_provider_actual(self):

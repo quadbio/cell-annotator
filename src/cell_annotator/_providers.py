@@ -151,7 +151,7 @@ class OpenAIProvider(LLMProvider):
             if other_messages:
                 messages.extend(other_messages)
 
-            completion = self.client.beta.chat.completions.parse(
+            completion = self.client.chat.completions.parse(
                 model=model,
                 messages=messages,  # type: ignore[arg-type]
                 response_format=response_format,
