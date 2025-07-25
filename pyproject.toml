@@ -144,7 +144,7 @@ lint.pydocstyle.convention = "numpy"
 
 [tool.pytest.ini_options]
 markers = [
-  "openai: mark a test querying OpenAI models.",
+  "real_llm_query: mark a test that sends data to an actual LLM provider.",
 ]
 testpaths = [ "tests" ]
 xfail_strict = true

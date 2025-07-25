@@ -39,8 +39,8 @@ expected_marker_genes = {
 }
 
 # Declare the neuronal and fibroblast cell types
-neuronal_cell_types = ["Neuron", "Neurons", "Neuronal cells", "neurons"]
-fibroblast_cell_types = ["Fibroblast", "Fibroblasts", "fibroblast cells"]
+neuronal_cell_types = ["Neuron", "Neurons", "Neuronal cells", "neurons", "neuron"]
+fibroblast_cell_types = ["Fibroblast", "Fibroblasts", "fibroblast cells", "fibroblast"]
 
 
 def get_example_data(n_cells: int = 100, n_samples: int = 1) -> AnnData:

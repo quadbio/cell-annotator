@@ -66,6 +66,7 @@ class TestOpenAIProvider:
     """Isolated tests for OpenAI provider."""
 
     @pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="OPENAI_API_KEY not available")
+    @pytest.mark.real_llm_query()
     def test_openai_list_models_real(self):
         """Test OpenAI model listing with real API."""
         provider = OpenAIProvider()
@@ -78,6 +79,7 @@ class TestOpenAIProvider:
         assert any("gpt" in model for model in model_names)
 
     @pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="OPENAI_API_KEY not available")
+    @pytest.mark.real_llm_query()
     def test_openai_query_real(self):
         """Test OpenAI query with real API call."""
         provider = OpenAIProvider()
@@ -117,6 +119,7 @@ class TestGeminiProvider:
     """Isolated tests for Gemini provider."""
 
     @pytest.mark.skipif(not os.getenv("GEMINI_API_KEY"), reason="GEMINI_API_KEY not available")
+    @pytest.mark.real_llm_query()
     def test_gemini_list_models_real(self):
         """Test Gemini model listing with real API."""
         provider = GeminiProvider()
@@ -129,6 +132,7 @@ class TestGeminiProvider:
         assert any("gemini" in model for model in model_names)
 
     @pytest.mark.skipif(not os.getenv("GEMINI_API_KEY"), reason="GEMINI_API_KEY not available")
+    @pytest.mark.real_llm_query()
     def test_gemini_query_real(self):
         """Test Gemini query with real API call."""
         provider = GeminiProvider()
@@ -160,6 +164,7 @@ class TestAnthropicProvider:
     """Isolated tests for Anthropic provider."""
 
     @pytest.mark.skipif(not os.getenv("ANTHROPIC_API_KEY"), reason="ANTHROPIC_API_KEY not available")
+    @pytest.mark.real_llm_query()
     def test_anthropic_list_models_real(self):
         """Test Anthropic model listing with real API."""
         provider = AnthropicProvider()
@@ -172,6 +177,7 @@ class TestAnthropicProvider:
         assert any("claude" in model for model in model_names)
 
     @pytest.mark.skipif(not os.getenv("ANTHROPIC_API_KEY"), reason="ANTHROPIC_API_KEY not available")
+    @pytest.mark.real_llm_query()
     def test_anthropic_query_real(self):
         """Test Anthropic query with real API call."""
         provider = AnthropicProvider()
@@ -219,6 +225,7 @@ class TestProviderIntegration:
         not any(os.getenv(key) for key in ["OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY"]),
         reason="No API keys available for testing",
     )
+    @pytest.mark.real_llm_query()
     def test_available_provider_models(self):
         """Test model availability for configured providers."""
         providers_to_test = []

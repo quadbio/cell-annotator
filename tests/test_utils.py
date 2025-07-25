@@ -120,7 +120,7 @@ class TestUtils:
         assert response.parsed_response == "parsed_response"
         mock_client.chat.completions.parse.assert_called_once()
 
-    @pytest.mark.openai()
+    @pytest.mark.real_llm_query()
     def test_openai_provider_actual(self):
         """Test actual OpenAI provider call."""
         provider = OpenAIProvider()

@@ -2,38 +2,24 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
+from tests.utils import (
+    expected_marker_genes,
+    fibroblast_cell_types,
+    neuronal_cell_types,
+)
 
-from cell_annotator._response_formats import CellTypeMappingOutput, PredictedCellTypeOutput
-from cell_annotator.sample_annotator import SampleAnnotator
-
-from .utils import expected_marker_genes, fibroblast_cell_types, get_example_data, neuronal_cell_types
+from cell_annotator._response_formats import (
+    CellTypeMappingOutput,
+    PredictedCellTypeOutput,
+)
 
 
 class TestSampleAnnotator:
-    @pytest.fixture
-    def sample_annotator(self):
-        adata = get_example_data()
-
-        return SampleAnnotator(
-            adata=adata,
-            sample_name="sample_1",
-            species="human",
-            tissue="In vitro neurons and fibroblasts",
-            stage="adult",
-            cluster_key="leiden",
-            model="gpt-4o-mini",
-            max_completion_tokens=500,
-            provider="openai",  # Explicitly use OpenAI provider
-        )
-
     @patch("cell_annotator.sample_annotator.SampleAnnotator.query_llm")
     def test_annotate_clusters(self, mock_query_llm, sample_annotator):
-        """Test annotate_clusters specifically with OpenAI provider."""
+        """Test annotate_clusters with mocked response across all providers."""
         mock_response = PredictedCellTypeOutput(cell_type="Neuron")
         mock_query_llm.return_value = mock_response
-
-        # Verify we're using OpenAI provider
-        assert sample_annotator._provider_name == "openai"
 
         sample_annotator.marker_genes = {
             "0": expected_marker_genes["Neuron"][:2],
@@ -46,12 +32,9 @@ class TestSampleAnnotator:
 
     @patch("cell_annotator.sample_annotator.SampleAnnotator.query_llm")
     def test_harmonize_annotations(self, mock_query_llm, sample_annotator):
-        """Test harmonize_annotations specifically with OpenAI provider."""
+        """Test harmonize_annotations with mocked response across all providers."""
         mock_response = CellTypeMappingOutput(mapped_global_name="Neuron")
         mock_query_llm.return_value = mock_response
-
-        # Verify we're using OpenAI provider
-        assert sample_annotator._provider_name == "openai"
 
         sample_annotator.annotation_df = pd.DataFrame({"cell_type": ["type1", "type2"]})
         sample_annotator.harmonize_annotations(global_cell_type_list=["Neuron", "Astrocyte"])
@@ -76,7 +59,7 @@ class TestSampleAnnotator:
         for _cluster, genes in sample_annotator.marker_genes.items():
             assert len(genes) > 0
 
-    @pytest.mark.openai()
+    @pytest.mark.real_llm_query()
     def test_annotate_clusters_actual(self, sample_annotator):
         sample_annotator.get_cluster_markers(min_auc=0.6)
         sample_annotator.annotate_clusters(min_markers=1, expected_marker_genes=expected_marker_genes)
