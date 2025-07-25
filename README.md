@@ -17,7 +17,7 @@
 [badge-zenodo]: https://zenodo.org/badge/899554552.svg
 
 
-🧬 CellAnnotator is an [scverse ecosystem package](https://scverse.org/packages/#ecosystem), designed to annotate cell types in scRNA-seq data based on marker genes using LLMs, currenlty supporting OpenAI, Google (Gemini) and Anthropic (Claude) models.
+🧬 CellAnnotator is an [scverse ecosystem package](https://scverse.org/packages/#ecosystem), designed to annotate cell types in scRNA-seq data based on marker genes using large language models (LLMs). It supports OpenAI, Google Gemini, and Anthropic Claude models out of the box, with more providers planned for the future.
 
 
 ## ✨ Key Features
@@ -34,15 +34,11 @@
 
 
 ## 📦 Installation
-
-
 You need to have 🐍 Python 3.10 or newer installed on your system.
 If you don't have Python installed, we recommend installing [Mambaforge][].
 
 
 ### 🚀 PyPI
-
-
 Install by running:
 
 ```bash
@@ -51,8 +47,6 @@ pip install cell-annotator
 
 
 ### 🛠️ Development version
-
-
 To install the latest development version from [GitHub](https://github.com/quadbio/cell-annotator), run
 
 ```bash
@@ -61,8 +55,6 @@ pip install git+https://github.com/quadbio/cell-annotator.git@main
 
 
 ## 🏁 Getting started
-
-
 After installation, head over to the LLM provider of your choice to generate an API key 🔑. For example:
 
 - OpenAI: [API key](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key)
@@ -87,27 +79,31 @@ cell_ann = CellAnnotator(
 By default, this will store annotations in `adata.obs['cell_type_predicted']`. Head over to our 📚 [tutorials](https://cell-annotator.readthedocs.io/en/latest/notebooks/tutorials/index.html) to see more advanced use cases, and learn how to adapt this to your own data. You can run `CellAnnotator` for just a single sample of data, or across multiple samples. In the latter case, it will attempt to harmonize annotations across samples.
 
 
+
 ## 💸 Costs and models
+CellAnnotator is LLM-agnostic and works with multiple providers:
 
+- **OpenAI (GPT models):** The default model is currently `gpt-4o-mini`, which is included in [OpenAI's Free Usage Tier](https://platform.openai.com/docs/guides/rate-limits). You can get started for free and experiment with our 📚 [tutorials](https://cell-annotator.readthedocs.io/en/latest/notebooks/tutorials/index.html) and your own data. For more accurate cell type labels in complex tissues, we recommend more powerful models like `gpt-4o`, `gpt-4.1`, or reasoning models like `o3-mini` (these may incur a small fee; e.g., running both tutorials with `o3-mini` costs around 1 USD). See the [OpenAI API docs](https://platform.openai.com/docs/models) for details.
 
-The default model is currently `gpt-4o-mini`, which is included in [OpenAI's Free Usage Tier](https://platform.openai.com/docs/guides/rate-limits). Thus, you can get started for free and experiment with our 📚 [tutorials](https://cell-annotator.readthedocs.io/en/latest/notebooks/tutorials/index.html) and with your own data. If you want to get accurate cell type labels for complex tissues, we strongly recommend using more powerful models, like `gpt-4o`, `gpt-4.1`, etc, or reasoning models like `o3-mini`, for which you will have to pay a small fee to OpenAI. As an orientation, running both tutorials with `o3-mini` will cost around 1 USD. Take a look at the [OpenAI API docs](https://platform.openai.com/docs/models) to learn more about the different available models.
+- **Google Gemini:** Gemini models are supported and have their own free tier and pricing. See the [Gemini API docs](https://ai.google.dev/gemini-api/docs/models) for available models and costs.
+
+- **Anthropic Claude:** Claude models are supported. See the [Anthropic pricing page](https://docs.anthropic.com/claude/docs/pricing) for details.
+
+You can select your provider and model by setting the appropriate parameters. More providers may be supported in the future as the LLM ecosystem evolves.
+
 
 
 ## 🔐 Data privacy
+This package sends cluster marker genes, and the `species` and `tissue` you define, to the selected LLM provider (e.g., OpenAI, Google, or Anthropic). **No actual gene expression values are sent.**
 
-
-This package sends cluster marker genes to OpenAI, but no actual gene expression values. In addition, it sends the `species` and `tissue` you define. Make sure your usage of this package aligns with your institution's guidelines on data privacy and AI models.
+Please ensure your usage of this package aligns with your institution's guidelines on data privacy and the use of external AI models. Each provider has its own privacy policy and terms of service. Review these carefully before using CellAnnotator with sensitive or regulated data.
 
 
 ## 🙏 Credits
-
-
 This tool was inspired by [Hou et al., Nature Methods 2024](https://www.nature.com/articles/s41592-024-02235-4) and [https://github.com/VPetukhov/GPTCellAnnotator](https://github.com/VPetukhov/GPTCellAnnotator).
 
 
 ## 📬 Contact
-
-
 If you found a bug, please use the [issue tracker][].
 
 
