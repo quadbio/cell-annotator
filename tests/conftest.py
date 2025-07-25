@@ -38,19 +38,11 @@ def provider_name(request) -> str:
 @pytest.fixture
 def base_annotator(provider_name: str) -> BaseAnnotator:
     """Create BaseAnnotator instance with specified provider."""
-    # Use specific model names that work reliably for testing
-    model_map = {
-        "openai": "gpt-4o-mini",
-        "gemini": "gemini-1.5-flash",
-        "anthropic": "claude-3-haiku-20240307",
-    }
-
     return BaseAnnotator(
         species="human",
         tissue="brain",
         stage="adult",
         cluster_key="leiden",
-        model=model_map.get(provider_name),
         max_completion_tokens=300,
         provider=provider_name,
     )
@@ -59,13 +51,6 @@ def base_annotator(provider_name: str) -> BaseAnnotator:
 @pytest.fixture
 def sample_annotator(provider_name: str) -> SampleAnnotator:
     """Create SampleAnnotator instance with specified provider."""
-    # Use specific model names that work reliably for testing
-    model_map = {
-        "openai": "gpt-4o-mini",
-        "gemini": "gemini-1.5-flash",
-        "anthropic": "claude-3-haiku-20240307",
-    }
-
     adata = get_example_data(n_cells=100, n_samples=1)
     return SampleAnnotator(
         adata=adata,
@@ -74,7 +59,6 @@ def sample_annotator(provider_name: str) -> SampleAnnotator:
         tissue="In vitro neurons and fibroblasts",
         stage="adult",
         cluster_key="leiden",
-        model=model_map.get(provider_name),
         max_completion_tokens=1500,
         provider=provider_name,
     )
@@ -83,13 +67,6 @@ def sample_annotator(provider_name: str) -> SampleAnnotator:
 @pytest.fixture
 def cell_annotator_single(provider_name: str) -> CellAnnotator:
     """Create CellAnnotator instance with single sample and specified provider."""
-    # Use specific model names that work reliably for testing
-    model_map = {
-        "openai": "gpt-4o-mini",
-        "gemini": "gemini-1.5-flash",
-        "anthropic": "claude-3-haiku-20240307",
-    }
-
     adata = get_example_data(n_cells=200, n_samples=1)
     return CellAnnotator(
         adata=adata,
@@ -98,7 +75,6 @@ def cell_annotator_single(provider_name: str) -> CellAnnotator:
         stage="adult",
         cluster_key="leiden",
         sample_key=None,
-        model=model_map.get(provider_name),
         max_completion_tokens=1500,
         provider=provider_name,
     )
@@ -107,13 +83,6 @@ def cell_annotator_single(provider_name: str) -> CellAnnotator:
 @pytest.fixture
 def cell_annotator_multi(provider_name: str) -> CellAnnotator:
     """Create CellAnnotator instance with multiple samples and specified provider."""
-    # Use specific model names that work reliably for testing
-    model_map = {
-        "openai": "gpt-4o-mini",
-        "gemini": "gemini-1.5-flash",
-        "anthropic": "claude-3-haiku-20240307",
-    }
-
     adata = get_example_data(n_cells=200, n_samples=2)
     return CellAnnotator(
         adata=adata,
@@ -122,7 +91,6 @@ def cell_annotator_multi(provider_name: str) -> CellAnnotator:
         stage="adult",
         cluster_key="leiden",
         sample_key="sample",
-        model=model_map.get(provider_name),
         max_completion_tokens=1500,
         provider=provider_name,
     )
