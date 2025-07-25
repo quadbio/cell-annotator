@@ -35,6 +35,9 @@ class BaseAnnotator(APIKeyMixin):
         LLM provider name. If None, auto-detects from model name or uses the first
         available provider with a valid API key. See PackageConstants.supported_providers
         for the list of supported providers.
+    api_key
+        Optional API key for the selected provider. If None, uses environment variables.
+        Useful for programmatically providing API keys or using different keys per instance.
     """
 
     def __init__(
@@ -46,6 +49,7 @@ class BaseAnnotator(APIKeyMixin):
         model: str | None = None,
         max_completion_tokens: int | None = None,
         provider: str | None = None,
+        api_key: str | None = None,
         _skip_validation: bool = False,
     ):
         super().__init__()  # Initialize APIKeyMixin
@@ -60,13 +64,18 @@ class BaseAnnotator(APIKeyMixin):
         # Determine provider and model
         if provider is None and model is None:
             # Auto-select the first available provider and its default model
-            available_providers = self.api_keys.get_available_providers()
-            if not available_providers:
-                raise ValueError(
-                    "No API keys found. Please set up at least one provider. "
-                    "Run APIKeyManager().print_status() for setup instructions."
-                )
-            provider = available_providers[0]
+            if api_key is None:
+                # Only check environment keys if no manual key provided
+                available_providers = self.api_keys.get_available_providers()
+                if not available_providers:
+                    raise ValueError(
+                        "No API keys found. Please set up at least one provider. "
+                        "Run APIKeyManager().print_status() for setup instructions."
+                    )
+                provider = available_providers[0]
+            else:
+                # If manual API key provided but no provider specified, default to OpenAI
+                provider = "openai"
             model = PackageConstants.default_models[provider]
         elif provider is None and model is not None:
             # Model specified, auto-detect provider
@@ -80,11 +89,12 @@ class BaseAnnotator(APIKeyMixin):
         assert model is not None, "Model should not be None at this point"
 
         # Validate provider and set up (skip if already validated by parent)
-        if not _skip_validation:
+        if not _skip_validation and api_key is None:
+            # Only check environment API keys if no manual key provided
             if not self.check_api_access(provider=provider):
                 raise ValueError(f"Cannot use model '{model}': missing API key for provider '{provider}'")
 
-        self._provider = get_provider(provider)
+        self._provider = get_provider(provider, api_key=api_key)
         self._provider_name = provider
         self.model = model
 
@@ -177,6 +187,26 @@ class BaseAnnotator(APIKeyMixin):
         )
 
         return response
+
+    def list_available_models(self) -> list[str]:
+        """
+        List models available for the current provider.
+
+        Returns models that are accessible with your current API key and usage tier.
+        This is particularly useful for OpenAI where model availability depends on
+        your account tier.
+
+        Returns
+        -------
+        List of available model names for the current provider.
+
+        Examples
+        --------
+        >>> annotator = BaseAnnotator(species="human", tissue="brain")
+        >>> models = annotator.list_available_models()
+        >>> print(f"Available models: {models}")
+        """
+        return self._provider.list_available_models()
 
     def test_query(self, return_details: bool = False) -> bool | tuple[bool, str]:
         """

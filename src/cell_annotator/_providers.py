@@ -2,6 +2,8 @@
 
 from abc import ABC, abstractmethod
 
+from dotenv import load_dotenv
+
 from cell_annotator._logging import logger
 from cell_annotator._response_formats import BaseOutput
 from cell_annotator.check import check_deps
@@ -47,17 +49,76 @@ class LLMProvider(ABC):
         Parsed structured response.
         """
 
+    def list_available_models(self) -> list[str]:
+        """
+        List models available with current API key and usage tier.
+
+        Returns
+        -------
+        List of available model names.
+        """
+        try:
+            return self._list_models_impl()
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Failed to list models for %s: %s", self.__class__.__name__, str(e))
+            return []
+
+    @abstractmethod
+    def _list_models_impl(self) -> list[str]:
+        """Provider-specific implementation for listing models."""
+
 
 class OpenAIProvider(LLMProvider):
     """OpenAI provider implementation."""
 
-    def __init__(self) -> None:
-        """Initialize OpenAI provider with dependency check."""
+    def __init__(self, api_key: str | None = None) -> None:
+        """
+        Initialize OpenAI provider with dependency check.
+
+        Parameters
+        ----------
+        api_key
+            Optional API key. If None, uses environment variable.
+        """
         check_deps("openai")
+        self._client = None
+        self._api_key = api_key
+
+    @property
+    def client(self):
+        """Lazy-initialized OpenAI client."""
+        if self._client is None:
+            # Ensure environment variables are loaded (unless manual API key provided)
+            if self._api_key is None:
+                load_dotenv()
+            from openai import OpenAI
+
+            # Use manual API key if provided, otherwise use environment/default
+            self._client = OpenAI(api_key=self._api_key) if self._api_key else OpenAI()
+        return self._client
 
     def __repr__(self) -> str:
         """Return a string representation of the OpenAI provider."""
         return "OpenAIProvider(models: GPT, o1, etc.)"
+
+    def _list_models_impl(self) -> list[str]:
+        """List available OpenAI models."""
+        models = self.client.models.list()
+
+        # Filter to only chat models (exclude embeddings, TTS, etc.)
+        chat_models = []
+        for model in models.data:
+            model_id = model.id.lower()
+            if (
+                any(prefix in model_id for prefix in ["gpt", "o1"])
+                and "embedding" not in model_id
+                and "tts" not in model_id
+                and "whisper" not in model_id
+                and "dall" not in model_id
+            ):
+                chat_models.append(model.id)
+
+        return sorted(chat_models)
 
     def query(
         self,
@@ -70,9 +131,6 @@ class OpenAIProvider(LLMProvider):
     ) -> BaseOutput:
         """Query OpenAI API."""
         import openai
-        from openai import OpenAI
-
-        client = OpenAI()
 
         if other_messages is None:
             other_messages = []
@@ -82,7 +140,7 @@ class OpenAIProvider(LLMProvider):
             if other_messages:
                 messages.extend(other_messages)
 
-            completion = client.beta.chat.completions.parse(
+            completion = self.client.beta.chat.completions.parse(
                 model=model,
                 messages=messages,  # type: ignore[arg-type]
                 response_format=response_format,
@@ -111,13 +169,57 @@ class OpenAIProvider(LLMProvider):
 class GeminiProvider(LLMProvider):
     """Google Gemini provider implementation."""
 
-    def __init__(self) -> None:
-        """Initialize Gemini provider with dependency check."""
+    def __init__(self, api_key: str | None = None) -> None:
+        """
+        Initialize Gemini provider with dependency check.
+
+        Parameters
+        ----------
+        api_key
+            Optional API key. If None, uses environment variable.
+        """
         check_deps("google-genai")
+        self._client = None
+        self._api_key = api_key
+
+    @property
+    def client(self):
+        """Lazy-initialized Gemini client."""
+        if self._client is None:
+            # Ensure environment variables are loaded (unless manual API key provided)
+            if self._api_key is None:
+                load_dotenv()
+            from google import genai
+
+            # Use manual API key if provided, otherwise use environment/default
+            if self._api_key:
+                self._client = genai.Client(api_key=self._api_key)
+            else:
+                self._client = genai.Client()
+        return self._client
 
     def __repr__(self) -> str:
         """Return a string representation of the Gemini provider."""
         return "GeminiProvider(models: gemini-2.0-flash-exp, gemini-1.5-pro, etc.)"
+
+    def _list_models_impl(self) -> list[str]:
+        """List available Gemini models."""
+        try:
+            models = self.client.models.list()
+
+            # Filter to only generative models (exclude embeddings, etc.)
+            chat_models = []
+            for model in models:
+                if hasattr(model, "name") and model.name:
+                    model_name = model.name.replace("models/", "")  # Remove 'models/' prefix if present
+                    if "embed" not in model_name.lower() and "text" not in model_name.lower():
+                        chat_models.append(model_name)
+
+            return sorted(chat_models)
+        except Exception as e:  # noqa: BLE001
+            # Fallback to known models if API call fails
+            logger.debug("Failed to list Gemini models, using fallback: %s", str(e))
+            return ["gemini-2.0-flash-exp", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.5-flash-lite"]
 
     def query(
         self,
@@ -129,10 +231,6 @@ class GeminiProvider(LLMProvider):
         max_completion_tokens: int | None = None,
     ) -> BaseOutput:
         """Query Gemini API."""
-        from google import genai
-
-        client = genai.Client()
-
         # Combine agent description with instruction
         if agent_description:
             full_instruction = f"{agent_description}\n\n{instruction}"
@@ -140,7 +238,7 @@ class GeminiProvider(LLMProvider):
             full_instruction = instruction
 
         try:
-            response = client.models.generate_content(
+            response = self.client.models.generate_content(
                 model=model,
                 contents=full_instruction,
                 config={
@@ -166,13 +264,52 @@ class GeminiProvider(LLMProvider):
 class AnthropicProvider(LLMProvider):
     """Anthropic Claude provider implementation."""
 
-    def __init__(self) -> None:
-        """Initialize Anthropic provider with dependency check."""
+    def __init__(self, api_key: str | None = None) -> None:
+        """
+        Initialize Anthropic provider with dependency check.
+
+        Parameters
+        ----------
+        api_key
+            Optional API key. If None, uses environment variable.
+        """
         check_deps("anthropic")
+        self._client = None
+        self._api_key = api_key
+
+    @property
+    def client(self):
+        """Lazy-initialized Anthropic client."""
+        if self._client is None:
+            # Ensure environment variables are loaded (unless manual API key provided)
+            if self._api_key is None:
+                load_dotenv()
+            import anthropic
+
+            # Use manual API key if provided, otherwise use environment/default
+            self._client = anthropic.Anthropic(api_key=self._api_key) if self._api_key else anthropic.Anthropic()
+        return self._client
 
     def __repr__(self) -> str:
         """Return a string representation of the Anthropic provider."""
         return "AnthropicProvider(models: claude-3.5-sonnet, claude-3-haiku, etc.)"
+
+    def _list_models_impl(self) -> list[str]:
+        """List available Anthropic models."""
+        try:
+            models = self.client.models.list()
+            model_list = [model.id for model in models.data]
+            return sorted(model_list)
+        except Exception as e:  # noqa: BLE001
+            # Fallback to known models if API call fails
+            logger.debug("Failed to list Anthropic models, using fallback: %s", str(e))
+            return [
+                "claude-3-5-sonnet-20241022",
+                "claude-3-5-haiku-20241022",
+                "claude-3-opus-20240229",
+                "claude-3-sonnet-20240229",
+                "claude-3-haiku-20240307",
+            ]
 
     def query(
         self,
@@ -184,10 +321,6 @@ class AnthropicProvider(LLMProvider):
         max_completion_tokens: int | None = None,
     ) -> BaseOutput:
         """Query Anthropic API."""
-        import anthropic
-
-        client = anthropic.Anthropic()
-
         # Combine agent description with instruction
         if agent_description:
             full_instruction = f"{agent_description}\n\n{instruction}"
@@ -199,7 +332,7 @@ class AnthropicProvider(LLMProvider):
             # So we'll ask for JSON and parse manually
             json_instruction = f"{full_instruction}\n\nPlease respond with valid JSON matching this format: {response_format.model_json_schema()}"
 
-            response = client.messages.create(
+            response = self.client.messages.create(
                 model=model,
                 max_tokens=max_completion_tokens or 4096,
                 messages=[{"role": "user", "content": json_instruction}],
@@ -221,7 +354,7 @@ class AnthropicProvider(LLMProvider):
 _PROVIDERS = {}
 
 
-def get_provider(provider_name: str) -> LLMProvider:
+def get_provider(provider_name: str, api_key: str | None = None) -> LLMProvider:
     """
     Get LLM provider by name.
 
@@ -229,11 +362,27 @@ def get_provider(provider_name: str) -> LLMProvider:
     ----------
     provider_name
         Name of the provider ('openai', 'gemini', or 'anthropic').
+    api_key
+        Optional API key. If provided, creates a new provider instance with this key.
+        If None, uses cached provider instance with environment variables.
 
     Returns
     -------
     Provider instance.
     """
+    # If API key is provided, always create a new instance (don't cache)
+    if api_key is not None:
+        if provider_name == "openai":
+            return OpenAIProvider(api_key=api_key)
+        elif provider_name == "gemini":
+            return GeminiProvider(api_key=api_key)
+        elif provider_name == "anthropic":
+            return AnthropicProvider(api_key=api_key)
+        else:
+            available = ["openai", "gemini", "anthropic"]
+            raise ValueError(f"Unknown provider '{provider_name}'. Available: {', '.join(available)}")
+
+    # Use cached provider instance for environment-based keys
     if provider_name not in _PROVIDERS:
         if provider_name == "openai":
             _PROVIDERS[provider_name] = OpenAIProvider()

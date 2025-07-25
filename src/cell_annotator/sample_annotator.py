@@ -45,6 +45,9 @@ class SampleAnnotator(BaseAnnotator):
         LLM provider name. If None, auto-detects from model name or uses the first
         available provider with a valid API key. See PackageConstants.supported_providers
         for the list of supported providers.
+    api_key
+        Optional API key for the selected provider. If None, uses environment variables.
+        Useful for programmatically providing API keys or using different keys per instance.
     """
 
     def __init__(
@@ -58,9 +61,12 @@ class SampleAnnotator(BaseAnnotator):
         model: str | None = None,
         max_completion_tokens: int | None = None,
         provider: str | None = None,
+        api_key: str | None = None,
         _skip_validation: bool = False,
     ):
-        super().__init__(species, tissue, stage, cluster_key, model, max_completion_tokens, provider, _skip_validation)
+        super().__init__(
+            species, tissue, stage, cluster_key, model, max_completion_tokens, provider, api_key, _skip_validation
+        )
         self.adata = adata
         self.sample_name = sample_name
 

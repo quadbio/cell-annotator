@@ -50,6 +50,9 @@ class CellAnnotator(BaseAnnotator):
         LLM provider name. If None, auto-detects from model name or uses the first
         available provider with a valid API key. See PackageConstants.supported_providers
         for the list of supported providers.
+    api_key
+        Optional API key for the selected provider. If None, uses environment variables.
+        Useful for programmatically providing API keys or using different keys per instance.
     """
 
     def __init__(
@@ -63,10 +66,12 @@ class CellAnnotator(BaseAnnotator):
         model: str | None = None,
         max_completion_tokens: int | None = None,
         provider: str | None = None,
+        api_key: str | None = None,
     ):
-        super().__init__(species, tissue, stage, cluster_key, model, max_completion_tokens, provider)
+        super().__init__(species, tissue, stage, cluster_key, model, max_completion_tokens, provider, api_key)
         self.adata = adata
         self.sample_key = sample_key
+        self._api_key = api_key  # Store API key for passing to SampleAnnotators
 
         self.sample_annotators: dict[str, SampleAnnotator] = {}
         self.expected_cell_types: list[str] = []
@@ -150,6 +155,7 @@ class CellAnnotator(BaseAnnotator):
                 model=self.model,
                 max_completion_tokens=self.max_completion_tokens,
                 provider=self._provider_name,
+                api_key=self._api_key,  # Pass API key to SampleAnnotator
                 _skip_validation=True,  # Skip validation since parent already validated
             )
 

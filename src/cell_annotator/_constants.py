@@ -20,6 +20,30 @@ class PackageConstants:
     default_cluster_key: str = "leiden"
     cell_type_key: str = "cell_type_harmonized"
 
+    @classmethod
+    def list_all_available_models(cls) -> dict[str, list[str]]:
+        """
+        List all available models across all providers.
+
+        Returns
+        -------
+        Dictionary mapping provider names to lists of available models.
+        """
+        from cell_annotator._providers import get_provider
+
+        all_models = {}
+        for provider_name in cls.supported_providers:
+            try:
+                provider = get_provider(provider_name)
+                models = provider.list_available_models()
+                if models:  # Only include providers with available models
+                    all_models[provider_name] = models
+            except Exception:  # noqa: BLE001
+                # Skip providers that can't be initialized (missing dependencies, API keys, etc.)
+                continue
+
+        return all_models
+
 
 class PromptExamples:
     """Examples to be used in prompts."""
