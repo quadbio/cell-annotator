@@ -2,6 +2,7 @@
 
 from cell_annotator._api_keys import APIKeyMixin
 from cell_annotator._constants import PackageConstants
+from cell_annotator._docs import d
 from cell_annotator._logging import logger
 from cell_annotator._prompts import Prompts
 from cell_annotator._providers import get_provider
@@ -18,26 +19,14 @@ class BaseAnnotator(APIKeyMixin):
 
     Parameters
     ----------
-    species
-        Species name (e.g., 'homo sapiens', 'mus musculus').
-    tissue
-        Tissue name (e.g., 'brain', 'heart', 'lung').
-    stage
-        Developmental stage (e.g., 'adult', 'embryonic', 'fetal').
-    cluster_key
-        Key of the cluster column in adata.obs.
-    model
-        Model name. If None, uses the default model for the selected or auto-detected provider.
-        Examples: 'gpt-4o-mini', 'gemini-2.5-flash', 'claude-3-haiku'.
-    max_completion_tokens
-        Maximum number of tokens the model is allowed to use for completion.
-    provider
-        LLM provider name. If None, auto-detects from model name or uses the first
-        available provider with a valid API key. See PackageConstants.supported_providers
-        for the list of supported providers.
-    api_key
-        Optional API key for the selected provider. If None, uses environment variables.
-        Useful for programmatically providing API keys or using different keys per instance.
+    %(species)s
+    %(tissue)s
+    %(stage)s
+    %(cluster_key)s
+    %(model)s
+    %(max_completion_tokens)s
+    %(provider)s
+    %(api_key)s
     """
 
     def __init__(
@@ -153,27 +142,20 @@ class BaseAnnotator(APIKeyMixin):
             # Default to OpenAI for unknown models
             return "openai"
 
+    @d.dedent
     def query_llm(
-        self,
-        instruction: str,
-        response_format: type[BaseOutput],
-        other_messages: list | None = None,
+        self, instruction: str, response_format: type[BaseOutput], other_messages: list | None = None
     ) -> BaseOutput:
         """
-        Query LLM to retrieve structured output based on the provided instruction.
+        Query the LLM with a given instruction.
 
         Parameters
         ----------
-        instruction
-            Instruction to provide to the model.
-        response_format
-            Response format class.
-        other_messages
-            Additional messages to provide to the model.
+        %(instruction)s
+        %(response_format)s
+        %(other_messages)s
 
-        Returns
-        -------
-        Parsed response.
+        %(returns_parsed_response)s
         """
         agent_description = self.prompts.get_cell_type_prompt()
 
@@ -188,21 +170,16 @@ class BaseAnnotator(APIKeyMixin):
 
         return response
 
+    @d.dedent
     def list_available_models(self) -> list[str]:
         """
-        List models available for the current provider.
+        List available models for the current provider.
 
-        Returns models that are accessible with your current API key and usage tier.
-        This is particularly useful for OpenAI where model availability depends on
-        your account tier.
-
-        Returns
-        -------
-        List of available model names for the current provider.
+        %(returns_list_str)s
 
         Examples
         --------
-        >>> annotator = BaseAnnotator(species="human", tissue="brain")
+        >>> annotator = CellAnnotator(adata, species="human", tissue="brain")
         >>> models = annotator.list_available_models()
         >>> print(f"Available models: {models}")
         """

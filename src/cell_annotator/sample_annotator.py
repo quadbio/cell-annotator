@@ -7,6 +7,7 @@ from pandas import DataFrame
 from scanpy.tools._rank_genes_groups import _Method
 
 from cell_annotator._constants import PackageConstants
+from cell_annotator._docs import d
 from cell_annotator._logging import logger
 from cell_annotator._response_formats import BaseOutput, CellTypeMappingOutput, PredictedCellTypeOutput
 from cell_annotator.base_annotator import BaseAnnotator
@@ -24,30 +25,16 @@ class SampleAnnotator(BaseAnnotator):
 
     Parameters
     ----------
-    adata
-        AnnData object containing single-cell data for one sample/batch.
-    sample_name
-        Identifier for this sample.
-    species
-        Species name (e.g., 'homo sapiens', 'mus musculus').
-    tissue
-        Tissue name (e.g., 'brain', 'heart', 'lung').
-    stage
-        Developmental stage (e.g., 'adult', 'embryonic', 'fetal').
-    cluster_key
-        Key of the cluster column in adata.obs.
-    model
-        Model name. If None, uses the default model for the selected or auto-detected provider.
-        Examples: 'gpt-4o-mini', 'gemini-2.5-flash', 'claude-3-haiku'.
-    max_completion_tokens
-        Maximum number of tokens the model is allowed to use for completion.
-    provider
-        LLM provider name. If None, auto-detects from model name or uses the first
-        available provider with a valid API key. See PackageConstants.supported_providers
-        for the list of supported providers.
-    api_key
-        Optional API key for the selected provider. If None, uses environment variables.
-        Useful for programmatically providing API keys or using different keys per instance.
+    %(adata_sample)s
+    %(sample_name)s
+    %(species)s
+    %(tissue)s
+    %(stage)s
+    %(cluster_key)s
+    %(model)s
+    %(max_completion_tokens)s
+    %(provider)s
+    %(api_key)s
     """
 
     def __init__(
@@ -117,6 +104,7 @@ class SampleAnnotator(BaseAnnotator):
 
         return "\n".join(lines)
 
+    @d.dedent
     def get_cluster_markers(
         self,
         method: _Method | None = "wilcoxon",
@@ -131,23 +119,16 @@ class SampleAnnotator(BaseAnnotator):
 
         Parameters
         ----------
-        method
-            Method for `sc.tl.rank_genes_groups`
-        min_cells_per_cluster
-            Include only clusters with at least this many cells.
-        min_specificity
-            Minimum specificity
-        min_auc
-            Minimum AUC
-        max_markers
-            Maximum number of markers
-        use_raw
-            Use raw data
-        use_rapids
-            Whether to use rapids for GPU acceleration
+        %(method)s
+        %(min_cells_per_cluster)s
+        %(min_specificity)s
+        %(min_auc)s
+        %(max_markers)s
+        %(use_raw)s
+        %(use_rapids)s
 
-        Returns
-        -------
+        %(returns_none)s
+
         Updates the following attributes:
         - `self.marker_dfs`
         - `self.marker_genes`

@@ -5,6 +5,7 @@ from scanpy.tools._rank_genes_groups import _Method
 from tqdm.auto import tqdm
 
 from cell_annotator._constants import PackageConstants
+from cell_annotator._docs import d
 from cell_annotator._logging import logger
 from cell_annotator._response_formats import CellTypeColorOutput, CellTypeListOutput, ExpectedMarkerGeneOutput
 from cell_annotator.base_annotator import BaseAnnotator
@@ -18,6 +19,7 @@ from cell_annotator.utils import (
 )
 
 
+@d.dedent
 class CellAnnotator(BaseAnnotator):
     """
     Main class for annotating cell types across multiple samples.
@@ -28,31 +30,16 @@ class CellAnnotator(BaseAnnotator):
 
     Parameters
     ----------
-    adata
-        AnnData object containing single-cell data, potentially from multiple samples.
-    sample_key
-        Key in :attr:`~anndata.AnnData.obs` indicating sample/batch membership.
-        If None, treats the entire dataset as a single sample.
-    species
-        Species name (e.g., 'homo sapiens', 'mus musculus').
-    tissue
-        Tissue name (e.g., 'brain', 'heart', 'lung').
-    stage
-        Developmental stage (e.g., 'adult', 'embryonic', 'fetal').
-    cluster_key
-        Key of the cluster column in adata.obs.
-    model
-        Model name. If None, uses the default model for the selected or auto-detected provider.
-        Examples: 'gpt-4o-mini', 'gemini-2.5-flash', 'claude-3-haiku'.
-    max_completion_tokens
-        Maximum number of tokens for LLM queries.
-    provider
-        LLM provider name. If None, auto-detects from model name or uses the first
-        available provider with a valid API key. See PackageConstants.supported_providers
-        for the list of supported providers.
-    api_key
-        Optional API key for the selected provider. If None, uses environment variables.
-        Useful for programmatically providing API keys or using different keys per instance.
+    %(adata)s
+    %(sample_key)s
+    %(species)s
+    %(tissue)s
+    %(stage)s
+    %(cluster_key)s
+    %(model)s
+    %(max_completion_tokens)s
+    %(provider)s
+    %(api_key)s
     """
 
     def __init__(
@@ -162,13 +149,13 @@ class CellAnnotator(BaseAnnotator):
         # sort by keys for visual pleasure
         self.sample_annotators = _try_sorting_dict_by_keys(self.sample_annotators)
 
+    @d.dedent
     def get_expected_cell_type_markers(self, n_markers: int = 5) -> None:
         """Get expected cell types and marker genes.
 
         Parameters
         ----------
-        n_markers
-            Number of marker genes per cell type.
+        %(n_markers)s
 
         Returns
         -------
@@ -203,6 +190,7 @@ class CellAnnotator(BaseAnnotator):
             for cell_type_markers in res_markers.expected_markers_per_cell_type
         }
 
+    @d.dedent
     def get_cluster_markers(
         self,
         method: _Method | None = "wilcoxon",
@@ -216,25 +204,18 @@ class CellAnnotator(BaseAnnotator):
 
         Parameters
         ----------
-        method
-            Method for `sc.tl.rank_genes_groups`
-        min_specificity
-            Minimum specificity
-        min_auc
-            Minimum AUC
-        max_markers
-            Maximum number of markers
-        use_raw
-            Use raw data
-        use_rapids
-            Whether to use rapids for GPU acceleration
+        %(method_rank_genes_groups)s
+        %(min_specificity)s
+        %(min_auc)s
+        %(max_markers)s
+        %(use_raw)s
+        %(use_rapids)s
 
         Returns
         -------
         Updates the following attributes:
         - `self.marker_dfs`
         - `self.marker_genes`
-
         """
         logger.info("Iterating over samples to compute cluster marker genes. ")
 
@@ -252,6 +233,7 @@ class CellAnnotator(BaseAnnotator):
                 use_rapids=use_rapids,
             )
 
+    @d.dedent
     def annotate_clusters(
         self, min_markers: int = 2, restrict_to_expected: bool = False, key_added: str = "cell_type_predicted"
     ):
@@ -259,12 +241,9 @@ class CellAnnotator(BaseAnnotator):
 
         Parameters
         ----------
-        min_markers
-            Minimal number of required marker genes per cluster.
-        key_added
-            Name of the key in .obs where updated annotations will be written
-        restrict_to_expected
-            If True, only use expected cell types for annotation.
+        %(min_markers)s
+        %(key_added)s
+        %(restrict_to_expected)s
 
         Returns
         -------
@@ -272,7 +251,6 @@ class CellAnnotator(BaseAnnotator):
         - `self.annotation_df`
         - `self.adata.obs[key_added]`
         - `self.annotated`
-
         """
         if self.expected_marker_genes is None:
             logger.debug(
