@@ -16,29 +16,35 @@ from cell_annotator.utils import _filter_by_category_size, _get_auc, _get_specif
 
 class SampleAnnotator(BaseAnnotator):
     """
-    Handles annotation for a single batch/sample.
+    Handles cell type annotation for a single sample/batch.
+
+    Computes marker genes, queries LLM for cell type predictions, and manages
+    annotation results for an individual sample. Typically used as part of a
+    multi-sample workflow orchestrated by CellAnnotator.
 
     Parameters
     ----------
     adata
-        Subset of the main AnnData object corresponding to a single batch.
+        AnnData object containing single-cell data for one sample/batch.
+    sample_name
+        Identifier for this sample.
     species
-        Species name (inherited from BaseAnnotator).
+        Species name (e.g., 'homo sapiens', 'mus musculus').
     tissue
-        Tissue name (inherited from BaseAnnotator).
+        Tissue name (e.g., 'brain', 'heart', 'lung').
     stage
-        Developmental stage (inherited from BaseAnnotator).
-    expected_marker_genes
-        Precomputed dict, mapping expected cell types to marker genes.
+        Developmental stage (e.g., 'adult', 'embryonic', 'fetal').
     cluster_key
-        Key of the cluster column in adata.obs (inherited from BaseAnnotator).
+        Key of the cluster column in adata.obs.
     model
-        Model name (inherited from BaseAnnotator).
+        Model name. If None, uses the default model for the selected or auto-detected provider.
+        Examples: 'gpt-4o-mini', 'gemini-2.5-flash', 'claude-3-haiku'.
     max_completion_tokens
-        Maximum number of tokens the model is allowed to use.
+        Maximum number of tokens the model is allowed to use for completion.
     provider
-        LLM provider (inherited from BaseAnnotator).
-
+        LLM provider name. If None, auto-detects from model name or uses the first
+        available provider with a valid API key. See PackageConstants.supported_providers
+        for the list of supported providers.
     """
 
     def __init__(
@@ -234,10 +240,8 @@ class SampleAnnotator(BaseAnnotator):
 
         Parameters
         ----------
-        max_completion_tokens
-            Maximum number of tokens for OpenAI API.
         min_markers
-            Minimum number of requires marker genes per cluster.
+            Minimum number of required marker genes per cluster.
         expected_marker_genes
             Expected marker genes per cell type.
         restrict_to_expected

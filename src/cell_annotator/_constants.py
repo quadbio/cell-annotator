@@ -15,6 +15,8 @@ class PackageConstants:
         "gemini": "gemini-2.5-flash-lite",
         "anthropic": "claude-3-haiku",
     }
+    # Supported LLM providers
+    supported_providers: list[str] = ["openai", "gemini", "anthropic"]
     default_cluster_key: str = "leiden"
     cell_type_key: str = "cell_type_harmonized"
 

@@ -12,22 +12,29 @@ class BaseAnnotator(APIKeyMixin):
     """
     Shared base class for annotation-related functionality.
 
+    Provides a unified interface for querying different LLM providers to annotate
+    cell types based on marker genes. Supports automatic provider detection from
+    model names and handles API key management.
+
     Parameters
     ----------
     species
-        Species name.
+        Species name (e.g., 'homo sapiens', 'mus musculus').
     tissue
-        Tissue name.
+        Tissue name (e.g., 'brain', 'heart', 'lung').
     stage
-        Developmental stage.
+        Developmental stage (e.g., 'adult', 'embryonic', 'fetal').
     cluster_key
         Key of the cluster column in adata.obs.
     model
-        Model name (e.g., 'gpt-4o-mini', 'gemini-2.5-flash'). If None, uses default model for the provider.
+        Model name. If None, uses the default model for the selected or auto-detected provider.
+        Examples: 'gpt-4o-mini', 'gemini-2.5-flash', 'claude-3-haiku'.
     max_completion_tokens
-        Maximum number of tokens the model is allowed to use.
+        Maximum number of tokens the model is allowed to use for completion.
     provider
-        LLM provider ('openai', 'gemini', or 'anthropic'). If None, auto-detects from model name or uses first available provider.
+        LLM provider name. If None, auto-detects from model name or uses the first
+        available provider with a valid API key. See PackageConstants.supported_providers
+        for the list of supported providers.
     """
 
     def __init__(

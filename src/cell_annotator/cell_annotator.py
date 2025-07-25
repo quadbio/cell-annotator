@@ -20,28 +20,36 @@ from cell_annotator.utils import (
 
 class CellAnnotator(BaseAnnotator):
     """
-    Main class for annotating cell types, including handling multiple samples.
+    Main class for annotating cell types across multiple samples.
+
+    Orchestrates the annotation workflow by creating SampleAnnotator instances for
+    each sample, coordinating marker gene computation, cell type annotation, and
+    harmonizing results across samples. Supports any LLM provider backend.
 
     Parameters
     ----------
     adata
-        Full AnnData object with multiple samples.
+        AnnData object containing single-cell data, potentially from multiple samples.
     sample_key
-        Key in :attr:`~anndata.AnnData.obs` indicating batch membership.
+        Key in :attr:`~anndata.AnnData.obs` indicating sample/batch membership.
+        If None, treats the entire dataset as a single sample.
     species
-        Species name.
+        Species name (e.g., 'homo sapiens', 'mus musculus').
     tissue
-        Tissue name.
+        Tissue name (e.g., 'brain', 'heart', 'lung').
     stage
-        Developmental stage.
+        Developmental stage (e.g., 'adult', 'embryonic', 'fetal').
     cluster_key
         Key of the cluster column in adata.obs.
     model
-        Model name (e.g., 'gpt-4o-mini', 'gemini-2.5-flash'). If None, uses default model for the provider.
+        Model name. If None, uses the default model for the selected or auto-detected provider.
+        Examples: 'gpt-4o-mini', 'gemini-2.5-flash', 'claude-3-haiku'.
     max_completion_tokens
         Maximum number of tokens for LLM queries.
     provider
-        LLM provider ('openai', 'gemini', or 'anthropic'). If None, auto-detects from model name or uses first available provider.
+        LLM provider name. If None, auto-detects from model name or uses the first
+        available provider with a valid API key. See PackageConstants.supported_providers
+        for the list of supported providers.
     """
 
     def __init__(
@@ -357,7 +365,7 @@ class CellAnnotator(BaseAnnotator):
         """Assign consistent ordering across cell type annotations.
 
         Note that for multiple samples with many clusters each, this typically requires a more powerful model
-        like `gpt-4o` (OpenAI) or `gemini-2.5-flash` (Google) to work well. This method replaces underscores with spaces.
+        to work well. This method replaces underscores with spaces.
 
         Parameters
         ----------
