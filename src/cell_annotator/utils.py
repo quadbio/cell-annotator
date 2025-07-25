@@ -283,6 +283,7 @@ def _filter_marker_genes_to_adata(marker_genes: dict[str, list[str]], adata: sc.
     filtered_marker_genes = {}
     total_filtered = 0
 
+    logger.info("Filtering marker genes to only include those present in adata.var_names.")
     for cell_type, markers in marker_genes.items():
         filtered_markers = []
         filtered_out = set()

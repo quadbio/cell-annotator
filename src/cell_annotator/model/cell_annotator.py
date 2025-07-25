@@ -151,7 +151,12 @@ class CellAnnotator(BaseAnnotator):
         self.sample_annotators = _try_sorting_dict_by_keys(self.sample_annotators)
 
     @d.dedent
-    def get_expected_cell_type_markers(self, n_markers: int = 5, filter_to_var_names: bool = True) -> None:
+    def get_expected_cell_type_markers(
+        self,
+        n_markers: int = 5,
+        filter_to_var_names: bool = True,
+        provide_var_names: bool = True,
+    ) -> None:
         """Get expected cell types and marker genes.
 
         Parameters
@@ -159,6 +164,8 @@ class CellAnnotator(BaseAnnotator):
         %(n_markers)s
         filter_to_var_names
             Whether to filter marker genes to only include those present in `adata.var_names`
+        provide_var_names
+            If True, include the available gene names in the prompt and instruct the model to restrict itself to this set.
 
         Returns
         -------
@@ -175,15 +182,16 @@ class CellAnnotator(BaseAnnotator):
         logger.info("Writing expected cell types to `self.expected_cell_types`")
         self.expected_cell_types = res_types.cell_type_list
 
-        marker_gene_prompt = [
-            {"role": "assistant", "content": "; ".join(self.expected_cell_types) if self.expected_cell_types else ""},
-            {"role": "user", "content": self.prompts.get_cell_type_marker_prompt(n_markers)},
-        ]
+        # Compose a single prompt that includes the cell types directly in the prompt string
+        marker_gene_prompt = self.prompts.get_cell_type_marker_prompt(
+            n_markers,
+            cell_types=self.expected_cell_types,
+            var_names=list(self.adata.var_names) if provide_var_names else None,
+        )
 
         logger.info("Querying cell type markers.")
         res_markers = self.query_llm(
-            instruction=self.prompts.get_cell_type_prompt(),
-            other_messages=marker_gene_prompt,
+            instruction=marker_gene_prompt,
             response_format=ExpectedMarkerGeneOutput,
         )
 
