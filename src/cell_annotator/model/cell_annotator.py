@@ -8,8 +8,8 @@ from cell_annotator._constants import PackageConstants
 from cell_annotator._docs import d
 from cell_annotator._logging import logger
 from cell_annotator._response_formats import CellTypeColorOutput, CellTypeListOutput, ExpectedMarkerGeneOutput
-from cell_annotator.base_annotator import BaseAnnotator
-from cell_annotator.sample_annotator import SampleAnnotator
+from cell_annotator.model.base_annotator import BaseAnnotator
+from cell_annotator.model.sample_annotator import SampleAnnotator
 from cell_annotator.utils import (
     _format_annotation,
     _get_consistent_ordering,

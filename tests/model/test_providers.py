@@ -4,8 +4,8 @@ import os
 
 import pytest
 
-from cell_annotator._providers import AnthropicProvider, GeminiProvider, OpenAIProvider
 from cell_annotator._response_formats import BaseOutput
+from cell_annotator.model._providers import AnthropicProvider, GeminiProvider, OpenAIProvider
 
 
 class SimpleOutput(BaseOutput):

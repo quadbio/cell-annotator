@@ -3,7 +3,7 @@
 import os
 from unittest.mock import patch
 
-from cell_annotator._api_keys import APIKeyManager, APIKeyMixin
+from cell_annotator.model._api_keys import APIKeyManager, APIKeyMixin
 
 
 class TestAPIKeyManager:
@@ -46,7 +46,7 @@ class TestAPIKeyManager:
         assert availability["anthropic"] is True
 
     @patch.dict(os.environ, {}, clear=True)
-    @patch("cell_annotator._api_keys.load_dotenv")
+    @patch("cell_annotator.model._api_keys.load_dotenv")
     def test_no_keys_available(self, _mock_load_dotenv):
         """Test behavior when no API keys are available."""
         manager = APIKeyManager()
@@ -57,7 +57,7 @@ class TestAPIKeyManager:
         assert manager.get_available_providers() == []
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test_openai", "ANTHROPIC_API_KEY": "test_anthropic"}, clear=True)
-    @patch("cell_annotator._api_keys.load_dotenv")
+    @patch("cell_annotator.model._api_keys.load_dotenv")
     def test_partial_keys_available(self, _mock_load_dotenv):
         """Test behavior when only some API keys are available."""
         manager = APIKeyManager()
@@ -72,7 +72,7 @@ class TestAPIKeyManager:
         {"OPENAI_API_KEY": "test_openai", "GEMINI_API_KEY": "test_gemini", "ANTHROPIC_API_KEY": "test_anthropic"},
         clear=True,
     )
-    @patch("cell_annotator._api_keys.load_dotenv")
+    @patch("cell_annotator.model._api_keys.load_dotenv")
     def test_all_keys_available(self, _mock_load_dotenv):
         """Test behavior when all API keys are available."""
         manager = APIKeyManager()

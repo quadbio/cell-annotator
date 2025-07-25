@@ -15,7 +15,7 @@ from cell_annotator._response_formats import (
 
 
 class TestSampleAnnotator:
-    @patch("cell_annotator.sample_annotator.SampleAnnotator.query_llm")
+    @patch("cell_annotator.model.sample_annotator.SampleAnnotator.query_llm")
     def test_annotate_clusters(self, mock_query_llm, sample_annotator):
         """Test annotate_clusters with mocked response across all providers."""
         mock_response = PredictedCellTypeOutput(cell_type="Neuron")
@@ -30,7 +30,7 @@ class TestSampleAnnotator:
         assert sample_annotator.annotation_dict["0"].cell_type == "Neuron"
         assert sample_annotator.annotation_dict["1"].cell_type == "Neuron"
 
-    @patch("cell_annotator.sample_annotator.SampleAnnotator.query_llm")
+    @patch("cell_annotator.model.sample_annotator.SampleAnnotator.query_llm")
     def test_harmonize_annotations(self, mock_query_llm, sample_annotator):
         """Test harmonize_annotations with mocked response across all providers."""
         mock_response = CellTypeMappingOutput(mapped_global_name="Neuron")

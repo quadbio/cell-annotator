@@ -3,10 +3,10 @@
 import pytest
 from dotenv import load_dotenv
 
-from cell_annotator._api_keys import APIKeyManager
-from cell_annotator.base_annotator import BaseAnnotator
-from cell_annotator.cell_annotator import CellAnnotator
-from cell_annotator.sample_annotator import SampleAnnotator
+from cell_annotator.model._api_keys import APIKeyManager
+from cell_annotator.model.base_annotator import BaseAnnotator
+from cell_annotator.model.cell_annotator import CellAnnotator
+from cell_annotator.model.sample_annotator import SampleAnnotator
 
 from .utils import get_example_data
 

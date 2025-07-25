@@ -1,12 +1,12 @@
 """Base model class to query LLM models."""
 
-from cell_annotator._api_keys import APIKeyMixin
 from cell_annotator._constants import PackageConstants
 from cell_annotator._docs import d
 from cell_annotator._logging import logger
 from cell_annotator._prompts import Prompts
-from cell_annotator._providers import get_provider
 from cell_annotator._response_formats import BaseOutput
+from cell_annotator.model._api_keys import APIKeyMixin
+from cell_annotator.model._providers import get_provider
 
 
 class BaseAnnotator(APIKeyMixin):

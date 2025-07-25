@@ -3,11 +3,11 @@ from unittest.mock import patch
 import pytest
 
 from cell_annotator._response_formats import OutputForTesting
-from cell_annotator.base_annotator import BaseAnnotator
+from cell_annotator.model.base_annotator import BaseAnnotator
 
 
 class TestBaseAnnotator:
-    @patch("cell_annotator.base_annotator.BaseAnnotator.query_llm")
+    @patch("cell_annotator.model.base_annotator.BaseAnnotator.query_llm")
     def test_query_llm_mock(self, mock_query_llm, base_annotator):
         """Test query_llm with mocked response across all providers."""
         mock_response = OutputForTesting(parsed_response="parsed_response")

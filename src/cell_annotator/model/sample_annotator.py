@@ -12,8 +12,8 @@ from cell_annotator._constants import PackageConstants
 from cell_annotator._docs import d
 from cell_annotator._logging import logger
 from cell_annotator._response_formats import BaseOutput, CellTypeMappingOutput, PredictedCellTypeOutput
-from cell_annotator.base_annotator import BaseAnnotator
 from cell_annotator.check import check_deps
+from cell_annotator.model.base_annotator import BaseAnnotator
 from cell_annotator.utils import _filter_by_category_size, _get_auc, _get_specificity, _try_sorting_dict_by_keys
 
 

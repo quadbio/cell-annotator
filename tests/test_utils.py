@@ -5,8 +5,8 @@ import pandas as pd
 import pytest
 import scanpy as sc
 
-from cell_annotator._providers import OpenAIProvider
 from cell_annotator._response_formats import OutputForTesting
+from cell_annotator.model._providers import OpenAIProvider
 from cell_annotator.utils import (
     _filter_by_category_size,
     _format_annotation,
