@@ -11,6 +11,7 @@ from cell_annotator._response_formats import CellTypeColorOutput, CellTypeListOu
 from cell_annotator.model.base_annotator import BaseAnnotator
 from cell_annotator.model.sample_annotator import SampleAnnotator
 from cell_annotator.utils import (
+    _filter_marker_genes_to_adata,
     _format_annotation,
     _get_consistent_ordering,
     _get_unique_cell_types,
@@ -150,12 +151,14 @@ class CellAnnotator(BaseAnnotator):
         self.sample_annotators = _try_sorting_dict_by_keys(self.sample_annotators)
 
     @d.dedent
-    def get_expected_cell_type_markers(self, n_markers: int = 5) -> None:
+    def get_expected_cell_type_markers(self, n_markers: int = 5, filter_to_var_names: bool = True) -> None:
         """Get expected cell types and marker genes.
 
         Parameters
         ----------
         %(n_markers)s
+        filter_to_var_names
+            Whether to filter marker genes to only include those present in `adata.var_names`
 
         Returns
         -------
@@ -185,10 +188,16 @@ class CellAnnotator(BaseAnnotator):
         )
 
         logger.info("Writing expected marker genes to `self.expected_marker_genes`.")
-        self.expected_marker_genes = {
+        raw_marker_genes = {
             cell_type_markers.cell_type_name: cell_type_markers.expected_marker_genes
             for cell_type_markers in res_markers.expected_markers_per_cell_type
         }
+
+        # Filter marker genes to available genes if requested
+        if filter_to_var_names:
+            self.expected_marker_genes = _filter_marker_genes_to_adata(raw_marker_genes, self.adata)
+        else:
+            self.expected_marker_genes = raw_marker_genes
 
     @d.dedent
     def get_cluster_markers(

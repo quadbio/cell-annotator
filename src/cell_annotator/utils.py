@@ -261,3 +261,43 @@ def _validate_list_mapping(list_a: list[str], list_b: list[str], context: str | 
             if removed_elements:
                 error_message += f" Removed elements: {', '.join(removed_elements)}."
             raise ValueError(error_message)
+
+
+def _filter_marker_genes_to_adata(marker_genes: dict[str, list[str]], adata: sc.AnnData) -> dict[str, list[str]]:
+    """Filter marker genes to only include those present in adata.var_names.
+
+    Parameters
+    ----------
+    marker_genes
+        Dictionary mapping cell types to lists of marker genes
+    adata
+        AnnData object containing gene expression data
+
+    Returns
+    -------
+    Dictionary mapping cell types to filtered lists of marker genes
+    """
+    available_genes = set(adata.var_names)
+    filtered_marker_genes = {}
+    total_filtered = 0
+
+    for cell_type, markers in marker_genes.items():
+        original_markers = set(markers)
+        filtered_markers = [gene for gene in markers if gene in available_genes]
+        filtered_out = original_markers - set(filtered_markers)
+
+        if filtered_out:
+            total_filtered += len(filtered_out)
+            logger.info(
+                "Cell type '%s': filtered %d marker genes not found in adata.var_names: %s",
+                cell_type,
+                len(filtered_out),
+                ", ".join(sorted(filtered_out)),
+            )
+
+        filtered_marker_genes[cell_type] = filtered_markers
+
+    if total_filtered > 0:
+        logger.info("Total marker genes filtered: %d", total_filtered)
+
+    return filtered_marker_genes
