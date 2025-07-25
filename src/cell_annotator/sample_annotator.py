@@ -1,5 +1,7 @@
 """Sample annotator class to annotate an individual sample."""
 
+import warnings
+
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -148,13 +150,20 @@ class SampleAnnotator(BaseAnnotator):
         else:
             # Compute AUC scores on CPU
             logger.debug("Computing marker genes per cluster on CPU using method `%s`.", method)
-            sc.tl.rank_genes_groups(
-                self.adata,
-                groupby=self.cluster_key,
-                method=method,
-                use_raw=use_raw,
-                n_genes=PackageConstants.max_markers,
-            )
+
+            # Suppress scanpy DataFrame fragmentation warnings
+            # These warnings come from scanpy's inefficient DataFrame building in rank_genes_groups
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore", message="DataFrame is highly fragmented", category=pd.errors.PerformanceWarning
+                )
+                sc.tl.rank_genes_groups(
+                    self.adata,
+                    groupby=self.cluster_key,
+                    method=method,
+                    use_raw=use_raw,
+                    n_genes=PackageConstants.max_markers,
+                )
 
         marker_dfs = {}
         logger.debug("Iterating over clusters to compute specificity and AUC values.")
