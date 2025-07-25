@@ -67,8 +67,43 @@ class SampleAnnotator(BaseAnnotator):
         # compute the number of cells per cluster
         self.n_cells_per_cluster = _try_sorting_dict_by_keys(self.adata.obs[self.cluster_key].value_counts().to_dict())
 
-    def __repr__(self):
-        return f"SampleAnnotator(sample_name={self.sample_name!r}, n_clusters={self.adata.obs[self.cluster_key].nunique()}, n_cells={self.adata.n_obs:,})"
+    def __repr__(self) -> str:
+        """Return a string representation of the SampleAnnotator."""
+        lines = []
+        lines.append(f"🧬 {self.__class__.__name__}")
+        lines.append("=" * (len(self.__class__.__name__) + 3))
+
+        # Sample and data info
+        lines.append(f"📋 Sample: {self.sample_name}")
+        lines.append(f"🔢 Clusters: {self.adata.obs[self.cluster_key].nunique()}")
+        lines.append(f"🔬 Cells: {self.adata.n_obs:,}")
+
+        # Biological context (compact)
+        lines.append(f"🧬 Context: {self.species} {self.tissue} ({self.stage})")
+
+        # Model configuration
+        lines.append("")
+        lines.append(f"🤖 Provider: {self._provider_name}")
+        lines.append(f"🧠 Model: {self.model}")
+
+        # Processing status
+        lines.append("")
+        marker_status = "✅ Computed" if self.marker_genes else "❌ Not computed"
+        lines.append(f"🧬 Markers: {marker_status}")
+
+        annotation_status = "✅ Complete" if self.annotation_df is not None else "❌ Not done"
+        lines.append(f"🏷️  Annotation: {annotation_status}")
+
+        # LLM status (compact version)
+        try:
+            test_result = self.test_query()
+            llm_status = "✅ Ready" if test_result else "❌ Not working"
+        except Exception as e:  # noqa: BLE001
+            logger.debug("Status check failed: %s", str(e))
+            llm_status = "⚠️ Unknown"
+        lines.append(f"🔋 LLM Status: {llm_status}")
+
+        return "\n".join(lines)
 
     def get_cluster_markers(
         self,

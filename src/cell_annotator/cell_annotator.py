@@ -70,14 +70,53 @@ class CellAnnotator(BaseAnnotator):
         # Initialize SampleAnnotators for each batch
         self._initialize_sample_annotators()
 
-    def __repr__(self):
-        sample_summary = ", ".join(f"'{sample_id}'" for sample_id in self.sample_annotators)
-        return (
-            f"CellAnnotator(model={self.model!r}, species={self.species!r}, "
-            f"tissue={self.tissue!r}, stage={self.stage!r}, cluster_key={self.cluster_key!r}, "
-            f"sample_key={self.sample_key!r})\n"
-            f"with `{len(self.sample_annotators)!r}` sample(s) in `.sample_annotators`: {sample_summary}"
-        )
+    def __repr__(self) -> str:
+        """Return a string representation of the CellAnnotator."""
+        lines = []
+        lines.append(f"🧬 {self.__class__.__name__}")
+        lines.append("=" * (len(self.__class__.__name__) + 3))
+
+        # Biological context
+        lines.append(f"📋 Species: {self.species}")
+        lines.append(f"🔬 Tissue: {self.tissue}")
+        lines.append(f"⏳ Stage: {self.stage}")
+        lines.append(f"🔗 Cluster key: {self.cluster_key}")
+        lines.append(f"🔬 Sample key: {self.sample_key}")
+
+        # Model configuration
+        lines.append("")
+        lines.append(f"🤖 Provider: {self._provider_name}")
+        lines.append(f"🧠 Model: {self.model}")
+        if self.max_completion_tokens:
+            lines.append(f"🎚️ Max tokens: {self.max_completion_tokens}")
+
+        # Status
+        lines.append("")
+        try:
+            test_result = self.test_query()
+            status = "✅ Ready" if test_result else "❌ Not working"
+        except Exception as e:  # noqa: BLE001
+            # Catch all exceptions during test (API errors, invalid models, etc.)
+            logger.debug("Status check failed: %s", str(e))
+            status = "⚠️ Unknown"
+        lines.append(f"🔋 Status: {status}")
+
+        # Sample information
+        lines.append("")
+        lines.append(f"📊 Samples: {len(self.sample_annotators)}")
+        if self.sample_annotators:
+            sample_list = list(self.sample_annotators.keys())
+            if len(sample_list) <= 5:
+                # Show all samples if 5 or fewer
+                sample_summary = ", ".join(f"'{sample}'" for sample in sample_list)
+            else:
+                # Show first 3 and last 2 with ellipsis
+                first_samples = ", ".join(f"'{sample}'" for sample in sample_list[:3])
+                last_samples = ", ".join(f"'{sample}'" for sample in sample_list[-2:])
+                sample_summary = f"{first_samples}, ..., {last_samples}"
+            lines.append(f"🏷️  Sample IDs: {sample_summary}")
+
+        return "\n".join(lines)
 
     def _initialize_sample_annotators(self) -> None:
         """Create a SampleAnnotator for each batch."""
