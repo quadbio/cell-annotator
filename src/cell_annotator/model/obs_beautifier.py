@@ -8,11 +8,7 @@ from cell_annotator._logging import logger
 from cell_annotator._prompts import Prompts
 from cell_annotator._response_formats import CellTypeColorOutput, CellTypeListOutput
 from cell_annotator.model.llm_interface import LLMInterface
-from cell_annotator.utils import (
-    _get_consistent_ordering,
-    _get_unique_cell_types,
-    _validate_list_mapping,
-)
+from cell_annotator.utils import _get_consistent_ordering, _get_unique_cell_types, _validate_list_mapping
 
 
 @d.dedent
@@ -110,7 +106,18 @@ class ObsBeautifier(LLMInterface):
         if assign_colors:
             global_names_and_colors = self._get_cluster_colors(clusters=cell_type_list, unknown_key=unknown_key)
         else:
+            # If not assigning new colors, try to preserve existing ones.
+            # Start with all cell types mapped to empty strings
             global_names_and_colors = dict.fromkeys(cell_type_list, "")
+            # Collect existing colors from all keys and update
+            for key in keys:
+                color_key = f"{key}_colors"
+                if color_key in self.adata.uns:
+                    old_categories = self.adata.obs[key].cat.categories
+                    old_colors = self.adata.uns[color_key]
+                    for cat, color in zip(old_categories, old_colors, strict=True):
+                        if cat in global_names_and_colors:
+                            global_names_and_colors[cat] = color
 
         label_sets = _get_consistent_ordering(self.adata, global_names_and_colors, keys)
 
@@ -127,8 +134,10 @@ class ObsBeautifier(LLMInterface):
 
             logger.info("Writing categories for key '%s'", obs_key)
             self.adata.obs[obs_key] = self.adata.obs[obs_key].cat.set_categories(list(name_and_color.keys()))
-            if assign_colors:
-                self.adata.uns[f"{obs_key}_colors"] = list(name_and_color.values())
+            new_colors = list(name_and_color.values())
+            # Only write colors if there are any. This handles both assign_colors=True and preserving old colors.
+            if any(new_colors):
+                self.adata.uns[f"{obs_key}_colors"] = new_colors
 
     def _get_cluster_ordering(self, keys: list[str], unknown_key: str = PackageConstants.unknown_name) -> list[str]:
         """Query LLM for relational cluster ordering.
