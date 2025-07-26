@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+from flaky import flaky
 
 from cell_annotator._response_formats import OutputForTesting
 from cell_annotator.model.base_annotator import BaseAnnotator
@@ -24,6 +25,7 @@ class TestBaseAnnotator:
             response_format=OutputForTesting,
         )
 
+    @flaky
     @pytest.mark.real_llm_query()
     def test_query_llm_real(self, base_annotator):
         """Test actual query_llm call across all available providers."""

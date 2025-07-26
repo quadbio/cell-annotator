@@ -4,6 +4,7 @@ from tests.utils import expected_marker_genes, fibroblast_cell_types, neuronal_c
 
 
 class TestCellAnnotator:
+    @flaky
     @pytest.mark.real_llm_query()
     def test_get_expected_cell_type_markers(self, cell_annotator_single):
         """Test getting expected cell type markers with single sample data."""
@@ -36,6 +37,7 @@ class TestCellAnnotator:
         assert neuron_markers_found
         assert fibroblast_markers_found
 
+    @flaky
     @pytest.mark.real_llm_query()
     def test_annotate_clusters_single(self, cell_annotator_single):
         """Test annotating clusters with single sample data."""

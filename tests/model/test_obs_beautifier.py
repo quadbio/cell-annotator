@@ -1,11 +1,13 @@
 import numpy as np
 import pandas as pd
 import pytest
+from flaky import flaky
 
 from cell_annotator.model.obs_beautifier import ObsBeautifier
 
 
 class TestObsBeautifier:
+    @flaky
     @pytest.mark.real_llm_query()
     def test_reorder_and_color_clusters(self, cell_annotator_single):
         """Test reordering and coloring clusters."""
@@ -30,6 +32,7 @@ class TestObsBeautifier:
             assert f"{key}_colors" in cell_annotator.adata.uns
             assert len(cell_annotator.adata.uns[f"{key}_colors"]) == cell_annotator.adata.obs[key].nunique()
 
+    @flaky
     @pytest.mark.real_llm_query()
     def test_reorder_only_preserves_colors(self, cell_annotator_single):
         """Test that reordering clusters without assigning new colors preserves the original colors."""
