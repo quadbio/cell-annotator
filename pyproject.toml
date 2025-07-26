@@ -78,7 +78,7 @@ optional-dependencies.openai = [
   "openai>=1.90",
 ]
 optional-dependencies.test = [
-  "cell-annotator[openai]", # tests still use OpenAI provider
+  "cell-annotator[all-providers]", # tests use all providers
   "coverage",
   "pytest",
 ]
