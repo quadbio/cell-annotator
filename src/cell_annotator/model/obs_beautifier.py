@@ -1,5 +1,6 @@
 """Beautify categorical observations in AnnData objects."""
 
+import pandas as pd
 import scanpy as sc
 
 from cell_annotator._constants import PackageConstants
@@ -95,6 +96,17 @@ class ObsBeautifier(LLMInterface):
         if isinstance(keys, str):
             keys = [keys]
 
+        for key in keys:
+            # Convert to categorical if not already
+            if not pd.api.types.is_categorical_dtype(self.adata.obs[key]):
+                self.adata.obs[key] = self.adata.obs[key].astype("category")
+
+            # Ensure categories are strings for processing
+            if not all(isinstance(c, str) for c in self.adata.obs[key].cat.categories):
+                self.adata.obs[key] = self.adata.obs[key].cat.rename_categories(
+                    {cat: str(cat) for cat in self.adata.obs[key].cat.categories}
+                )
+
         # make the naming consistent: replaces underscores with spaces
         for key in keys:
             self.adata.obs[key] = self.adata.obs[key].map(lambda x: x.replace("_", " ") if isinstance(x, str) else x)
@@ -155,8 +167,10 @@ class ObsBeautifier(LLMInterface):
         """
         # format the current annotations sets as a string and prepare the query prompt
         unique_cell_types = _get_unique_cell_types(self.adata, keys, unknown_key)
+        # Filter out non-string types (like NaN) before joining
+        string_cell_types = [str(cell_type) for cell_type in unique_cell_types if pd.notna(cell_type)]
         prompts = Prompts(species="human", tissue="cell", stage="adult")
-        order_prompt = prompts.get_order_prompt(unique_cell_types=", ".join(unique_cell_types))
+        order_prompt = prompts.get_order_prompt(unique_cell_types=", ".join(string_cell_types))
 
         # query llm and format the response as a dict
         logger.info("Querying label ordering.")
@@ -193,7 +207,7 @@ class ObsBeautifier(LLMInterface):
         else:
             raise ValueError(f"Invalid type for 'clusters': {type(clusters)}")
 
-        cluster_names = ", ".join(cl for cl in cluster_list if cl != unknown_key)
+        cluster_names = ", ".join(str(cl) for cl in cluster_list if cl != unknown_key and pd.notna(cl))
 
         logger.info("Querying cluster colors.")
         prompts = Prompts(species="human", tissue="cell", stage="adult")

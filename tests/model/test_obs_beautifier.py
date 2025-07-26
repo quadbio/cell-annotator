@@ -1,3 +1,5 @@
+import numpy as np
+import pandas as pd
 import pytest
 
 from cell_annotator.model.obs_beautifier import ObsBeautifier
@@ -53,3 +55,50 @@ class TestObsBeautifier:
         assert reordered_color_map["B cells"] == original_colors["B cells"]
         assert reordered_color_map["T cells"] == original_colors["T cells"]
         assert len(new_colors) == 2
+
+    def test_reorder_with_nan_values(self, cell_annotator_single):
+        """Test that reordering handles NaN values gracefully."""
+
+        cell_annotator = cell_annotator_single
+        adata = cell_annotator.adata
+
+        # Set up initial annotations with a NaN value
+        adata.obs["leiden"] = adata.obs["leiden"].map({"0": "B cells", "1": "T cells"}).astype("category")
+        # Add a NaN value
+        adata.obs.loc[adata.obs.index[0], "leiden"] = np.nan
+
+        nan_count_before = adata.obs["leiden"].isna().sum()
+        assert nan_count_before > 0
+
+        # Reorder clusters - this should run without error
+        beautifier = ObsBeautifier(adata=adata)
+        beautifier.reorder_and_color(keys=["leiden"], assign_colors=False)
+
+        # Check that NaN values are preserved
+        nan_count_after = adata.obs["leiden"].isna().sum()
+        assert nan_count_after == nan_count_before
+
+    def test_reorder_with_different_dtypes(self, cell_annotator_single):
+        """Test that reordering handles different dtypes gracefully."""
+
+        cell_annotator = cell_annotator_single
+        adata = cell_annotator.adata
+
+        # Set up initial annotations with different dtypes
+        n_half = len(adata) // 2
+        adata.obs["integer_cats"] = ([0] * (n_half + (len(adata) % 2))) + ([1] * n_half)
+        adata.obs["object_cats"] = (["A"] * (n_half + (len(adata) % 2))) + (["B"] * n_half)
+        adata.obs["int_categorical_cats"] = pd.Series(([0] * (n_half + (len(adata) % 2))) + ([1] * n_half)).astype(
+            "category"
+        )
+
+        keys = ["integer_cats", "object_cats", "int_categorical_cats"]
+
+        # Reorder clusters - this should run without error
+        beautifier = ObsBeautifier(adata=adata)
+        beautifier.reorder_and_color(keys=keys, assign_colors=False)
+
+        # Check that all columns are now string categoricals
+        for key in keys:
+            assert pd.api.types.is_categorical_dtype(adata.obs[key])
+            assert all(isinstance(cat, str) for cat in adata.obs[key].cat.categories)

@@ -245,8 +245,8 @@ def _validate_list_mapping(list_a: list[str], list_b: list[str], context: str | 
     list_b
         The list of elements after mapping.
     """
-    set_a = set(list_a)
-    set_b = set(list_b)
+    set_a = {str(item) for item in list_a if pd.notna(item)}
+    set_b = {str(item) for item in list_b if pd.notna(item)}
 
     if set_a != set_b:
         added_elements = set_b - set_a
