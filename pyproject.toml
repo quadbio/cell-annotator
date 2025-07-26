@@ -4,7 +4,7 @@ requires = [ "hatch-vcs", "hatchling" ]
 
 [project]
 name = "cell-annotator"
-description = "A tool to annotate cell types"
+description = "Automated cell annotation from scRNA-seq data using LLMs"
 readme = "README.md"
 license = { file = "LICENSE" }
 maintainers = [
@@ -25,6 +25,7 @@ dynamic = [ "version" ]
 dependencies = [
   "docrep",
   "packaging",
+  "pydantic>=2",
   "python-dotenv",
   "rich",
   "scanpy>=1.11",
@@ -96,6 +97,7 @@ features = [ "dev" ]
 
 [tool.hatch.envs.docs]
 features = [ "doc" ]
+dev-mode = true
 scripts.build = "sphinx-build -M html docs docs/_build {args}"
 scripts.open = "python -m webbrowser -t docs/_build/html/index.html"
 scripts.clean = "git clean -fdX -- {args:docs}"
