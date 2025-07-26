@@ -83,6 +83,11 @@ optional-dependencies.test = [
   "coverage",
   "pytest",
 ]
+
+optional-dependencies.tutorials = [
+  "squidpy>=1.6",
+]
+
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://cell-annotator.readthedocs.io/"
 urls.Homepage = "https://cell-annotator.readthedocs.io/"
