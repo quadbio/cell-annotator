@@ -102,3 +102,44 @@ class TestObsBeautifier:
         for key in keys:
             assert isinstance(adata.obs[key].dtype, pd.CategoricalDtype)
             assert all(isinstance(cat, str) for cat in adata.obs[key].cat.categories)
+
+    def test_reorder_preserves_per_key_colors(self, cell_annotator_single):
+        """Test that reordering preserves colors independently for each key."""
+
+        cell_annotator = cell_annotator_single
+        adata = cell_annotator.adata
+
+        # --- Setup ---
+        # Create two categorical columns with overlapping categories but different colors
+        adata.obs["cat_1"] = pd.Series(["A", "B"] * (len(adata) // 2 + 1))[: len(adata)].astype("category")
+        adata.obs["cat_2"] = pd.Series(["A", "C"] * (len(adata) // 2 + 1))[: len(adata)].astype("category")
+
+        # Define distinct color maps
+        original_colors_1 = {"A": "#ff0000", "B": "#00ff00"}  # A is red
+        original_colors_2 = {"A": "#0000ff", "C": "#ffff00"}  # A is blue
+
+        adata.uns["cat_1_colors"] = [original_colors_1[cat] for cat in adata.obs["cat_1"].cat.categories]
+        adata.uns["cat_2_colors"] = [original_colors_2[cat] for cat in adata.obs["cat_2"].cat.categories]
+
+        # --- Run ---
+        beautifier = ObsBeautifier(adata=adata)
+        # The LLM will reorder ['A', 'B', 'C'] into a new order, e.g., ['A', 'C', 'B']
+        # The key is to ensure the color for 'A' is red for cat_1 and blue for cat_2 after this.
+        beautifier.reorder_and_color(keys=["cat_1", "cat_2"], assign_colors=False)
+
+        # --- Assert ---
+        # Check colors for cat_1
+        new_categories_1 = adata.obs["cat_1"].cat.categories
+        new_colors_1 = adata.uns["cat_1_colors"]
+        reordered_color_map_1 = dict(zip(new_categories_1, new_colors_1, strict=False))
+
+        assert reordered_color_map_1["A"] == original_colors_1["A"]
+        assert reordered_color_map_1["B"] == original_colors_1["B"]
+
+        # Check colors for cat_2
+        new_categories_2 = adata.obs["cat_2"].cat.categories
+        new_colors_2 = adata.uns["cat_2_colors"]
+        reordered_color_map_2 = dict(zip(new_categories_2, new_colors_2, strict=False))
+
+        assert reordered_color_map_2["A"] == original_colors_2["A"]
+        assert reordered_color_map_2["C"] == original_colors_2["C"]
