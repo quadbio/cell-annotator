@@ -56,7 +56,7 @@ class Checker:
 
 
 INSTALL_HINTS = types.SimpleNamespace(
-    openai="To use OpenAI models, install with: pip install 'cell-annotator[openai]' or pip install openai>=1.66",
+    openai="To use OpenAI models, install with: pip install 'cell-annotator[openai]'",
     google_genai="To use Google Gemini models, install with: pip install 'cell-annotator[gemini]' "
     "or pip install google-genai",
     anthropic="To use Anthropic Claude models, install with: pip install 'cell-annotator[anthropic]' "
