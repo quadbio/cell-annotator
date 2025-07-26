@@ -23,6 +23,7 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
+  "docrep",
   "packaging",
   "python-dotenv",
   "rich",
