@@ -100,5 +100,5 @@ class TestObsBeautifier:
 
         # Check that all columns are now string categoricals
         for key in keys:
-            assert pd.api.types.is_categorical_dtype(adata.obs[key])
+            assert isinstance(adata.obs[key].dtype, pd.CategoricalDtype)
             assert all(isinstance(cat, str) for cat in adata.obs[key].cat.categories)

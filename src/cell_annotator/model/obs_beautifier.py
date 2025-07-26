@@ -2,6 +2,7 @@
 
 import pandas as pd
 import scanpy as sc
+from pandas.api.types import CategoricalDtype
 
 from cell_annotator._constants import PackageConstants
 from cell_annotator._docs import d
@@ -98,7 +99,7 @@ class ObsBeautifier(LLMInterface):
 
         for key in keys:
             # Convert to categorical if not already
-            if not pd.api.types.is_categorical_dtype(self.adata.obs[key]):
+            if not isinstance(self.adata.obs[key].dtype, CategoricalDtype):
                 self.adata.obs[key] = self.adata.obs[key].astype("category")
 
             # Ensure categories are strings for processing
