@@ -97,7 +97,7 @@ class ObsBeautifier(LLMInterface):
 
         # make the naming consistent: replaces underscores with spaces
         for key in keys:
-            self.adata.obs[key] = self.adata.obs[key].map(lambda x: x.replace("_", " "))
+            self.adata.obs[key] = self.adata.obs[key].map(lambda x: x.replace("_", " ") if isinstance(x, str) else x)
 
         # Take the union of all cell types across keys and re-order the list
         cell_type_list = self._get_cluster_ordering(keys, unknown_key=unknown_key)
