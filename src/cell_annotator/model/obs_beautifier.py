@@ -15,6 +15,7 @@ from cell_annotator.utils import (
 )
 
 
+@d.dedent
 class ObsBeautifier(LLMInterface):
     """
     Beautifies categorical annotations in an AnnData object.
@@ -24,16 +25,11 @@ class ObsBeautifier(LLMInterface):
 
     Parameters
     ----------
-    adata
-        An AnnData object to modify.
-    model
-        The name of the language model to use (e.g., "gpt-4o-mini").
-    max_completion_tokens
-        The maximum number of tokens to generate in the completion.
-    provider
-        The name of the LLM provider (e.g., "openai").
-    api_key
-        A specific API key to use for the provider.
+    %(adata)s
+    %(model)s
+    %(max_completion_tokens)s
+    %(provider)s
+    %(api_key)s
     """
 
     def __init__(

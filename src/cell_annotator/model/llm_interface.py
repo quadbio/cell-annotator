@@ -8,6 +8,7 @@ from cell_annotator.model._api_keys import APIKeyMixin
 from cell_annotator.model._providers import get_provider
 
 
+@d.dedent
 class LLMInterface(APIKeyMixin):
     """
     Base class for interfacing with Large Language Models (LLMs).
@@ -19,17 +20,10 @@ class LLMInterface(APIKeyMixin):
 
     Parameters
     ----------
-    model
-        The name of the language model to use (e.g., "gpt-4o-mini"). If not
-        provided, a default model is selected based on available providers.
-    max_completion_tokens
-        The maximum number of tokens to generate in the completion.
-    provider
-        The name of the LLM provider (e.g., "openai", "anthropic"). If not
-        provided, it is auto-detected from the model name.
-    api_key
-        A specific API key to use for the provider. If not provided, the key is
-        retrieved from environment variables.
+    %(model)s
+    %(max_completion_tokens)s
+    %(provider)s
+    %(api_key)s
     _skip_validation
         For internal use. If True, skips API key validation.
     """
