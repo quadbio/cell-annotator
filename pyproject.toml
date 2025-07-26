@@ -81,6 +81,7 @@ optional-dependencies.openai = [
 optional-dependencies.test = [
   "cell-annotator[all-providers]", # tests use all providers
   "coverage",
+  "flaky",
   "pytest",
 ]
 
