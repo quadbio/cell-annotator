@@ -1,5 +1,7 @@
 """Beautify categorical observations in AnnData objects."""
 
+from typing import cast
+
 import pandas as pd
 import scanpy as sc
 from pandas.api.types import CategoricalDtype
@@ -118,24 +120,31 @@ class ObsBeautifier(LLMInterface):
         # assign meaningful colors to the reordered list of cell types
         if assign_colors:
             global_names_and_colors = self._get_cluster_colors(clusters=cell_type_list, unknown_key=unknown_key)
+            label_sets = _get_consistent_ordering(self.adata, global_names_and_colors, keys)
         else:
-            # If not assigning new colors, try to preserve existing ones.
-            # Start with all cell types mapped to empty strings
-            global_names_and_colors = dict.fromkeys(cell_type_list, "")
-            # Collect existing colors from all keys and update
+            # If not assigning new colors, preserve existing colors for each key separately.
+            label_sets = {}
             for key in keys:
                 color_key = f"{key}_colors"
+                key_colors = {}
                 if color_key in self.adata.uns:
                     old_categories = self.adata.obs[key].cat.categories
                     old_colors = self.adata.uns[color_key]
-                    for cat, color in zip(old_categories, old_colors, strict=True):
-                        if cat in global_names_and_colors:
-                            global_names_and_colors[cat] = color
+                    key_colors = dict(zip(old_categories, old_colors, strict=True))
 
-        label_sets = _get_consistent_ordering(self.adata, global_names_and_colors, keys)
+                # Get a consistent ordering for the current key, preserving its specific colors
+                ordered_labels = _get_consistent_ordering(self.adata, key_colors, [key])
+                label_sets.update(ordered_labels)
 
         # Re-add the unknown category, make sure that we retained all categories, and write to adata
         for obs_key, name_and_color in label_sets.items():
+            # When preserving colors, name_and_color might be incomplete if a category
+            # had no pre-existing color. We fill these in from the global ordering.
+            if not assign_colors:
+                for cat in self.adata.obs[obs_key].cat.categories:
+                    if cat not in name_and_color:
+                        name_and_color[cat] = ""  # Assign no color
+
             if unknown_key in self.adata.obs[obs_key].cat.categories:
                 logger.debug(
                     "Readding the unknown category with key '%s'",
@@ -143,11 +152,22 @@ class ObsBeautifier(LLMInterface):
                 )
                 name_and_color[unknown_key] = PackageConstants.unknown_color
 
-            _validate_list_mapping(list(self.adata.obs[obs_key].unique()), list(name_and_color.keys()), context=obs_key)
+            _validate_list_mapping(
+                list(self.adata.obs[obs_key].cat.categories), list(name_and_color.keys()), context=obs_key
+            )
 
             logger.info("Writing categories for key '%s'", obs_key)
-            self.adata.obs[obs_key] = self.adata.obs[obs_key].cat.set_categories(list(name_and_color.keys()))
-            new_colors = list(name_and_color.values())
+            # Use the globally ordered cell_type_list to set category order
+            ordered_cats = [cat for cat in cell_type_list if cat in name_and_color]
+            # Add any missing categories that were in the original data but not in the global list
+            for cat in self.adata.obs[obs_key].cat.categories:
+                if cat not in ordered_cats:
+                    ordered_cats.append(cat)
+
+            self.adata.obs[obs_key] = self.adata.obs[obs_key].cat.set_categories(ordered_cats)
+            # Sort the colors according to the new category order
+            new_colors = [name_and_color.get(cat, "") for cat in self.adata.obs[obs_key].cat.categories]
+
             # Only write colors if there are any. This handles both assign_colors=True and preserving old colors.
             if any(new_colors):
                 self.adata.uns[f"{obs_key}_colors"] = new_colors
@@ -180,7 +200,7 @@ class ObsBeautifier(LLMInterface):
             response_format=CellTypeListOutput,
         )
 
-        return response.cell_type_list
+        return cast(CellTypeListOutput, response).cell_type_list
 
     def _get_cluster_colors(
         self, clusters: str | list[str], unknown_key: str = PackageConstants.unknown_name
@@ -215,6 +235,7 @@ class ObsBeautifier(LLMInterface):
         response = self.query_llm(
             instruction=prompts.get_color_prompt(cluster_names), response_format=CellTypeColorOutput
         )
+        response = cast(CellTypeColorOutput, response)
         color_dict = {
             item.original_cell_type_label: item.assigned_color for item in response.cell_type_to_color_mapping
         }

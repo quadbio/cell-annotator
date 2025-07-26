@@ -234,9 +234,9 @@ def _get_consistent_ordering(
     return consistent_label_sets
 
 
-def _validate_list_mapping(list_a: list[str], list_b: list[str], context: str | None = None) -> None:
+def _validate_list_mapping(list_a: list, list_b: list, context: str | None = None) -> None:
     """
-    Validate that the elements in list_b match the elements in list_a.
+    Validate that the elements in list_b match the elements in list_a, ignoring NaN values.
 
     Parameters
     ----------
@@ -244,7 +244,10 @@ def _validate_list_mapping(list_a: list[str], list_b: list[str], context: str | 
         The original list of elements.
     list_b
         The list of elements after mapping.
+    context
+        Optional context for the error message.
     """
+    # Convert to strings and filter out NaN values
     set_a = {str(item) for item in list_a if pd.notna(item)}
     set_b = {str(item) for item in list_b if pd.notna(item)}
 
@@ -257,9 +260,9 @@ def _validate_list_mapping(list_a: list[str], list_b: list[str], context: str | 
             else:
                 error_message = "New elements differ from original elements."
             if added_elements:
-                error_message += f" Added elements: {', '.join(added_elements)}."
+                error_message += f" Added elements: {', '.join(sorted(added_elements))}."
             if removed_elements:
-                error_message += f" Removed elements: {', '.join(removed_elements)}."
+                error_message += f" Removed elements: {', '.join(sorted(removed_elements))}."
             raise ValueError(error_message)
 
 
