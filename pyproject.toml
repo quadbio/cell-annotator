@@ -4,7 +4,7 @@ requires = [ "hatch-vcs", "hatchling" ]
 
 [project]
 name = "cell-annotator"
-description = "A tool to annotate cell types"
+description = "Automated cell annotation from scRNA-seq data using LLMs"
 readme = "README.md"
 license = { file = "LICENSE" }
 maintainers = [
@@ -23,18 +23,32 @@ classifiers = [
 ]
 dynamic = [ "version" ]
 dependencies = [
-  "openai>=1.66",
+  "docrep",
+  "packaging",
+  "pydantic>=2",
   "python-dotenv",
   "rich",
   "scanpy>=1.11",
   # for debug logging (referenced from the issue template)
   "session-info2",
 ]
+
+# Convenience groups combining providers
+optional-dependencies.all-providers = [
+  "cell-annotator[anthropic]",
+  "cell-annotator[gemini]",
+  "cell-annotator[openai]",
+]
+
+optional-dependencies.anthropic = [
+  "anthropic>=0.59",
+]
+
+# Development dependencies
 optional-dependencies.dev = [
   "pre-commit",
   "twine>=4.0.2",
 ]
-
 optional-dependencies.doc = [
   "docutils>=0.8,!=0.18.*,!=0.19.*",
   "ipykernel",
@@ -51,14 +65,29 @@ optional-dependencies.doc = [
   "sphinxcontrib-bibtex>=1",
   "sphinxext-opengraph",
 ]
+
+optional-dependencies.gemini = [
+  "google-genai>=1.27",
+]
+# Other optional functionality
 optional-dependencies.gpu = [
   "rapids-singlecell>=0.12",
 ]
 
+# Core provider dependencies - one of these is required to use the package
+optional-dependencies.openai = [
+  "openai>=1.90",
+]
 optional-dependencies.test = [
+  "cell-annotator[all-providers]", # tests use all providers
   "coverage",
   "pytest",
 ]
+
+optional-dependencies.tutorials = [
+  "squidpy>=1.6",
+]
+
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://cell-annotator.readthedocs.io/"
 urls.Homepage = "https://cell-annotator.readthedocs.io/"
@@ -73,6 +102,7 @@ features = [ "dev" ]
 
 [tool.hatch.envs.docs]
 features = [ "doc" ]
+dev-mode = true
 scripts.build = "sphinx-build -M html docs docs/_build {args}"
 scripts.open = "python -m webbrowser -t docs/_build/html/index.html"
 scripts.clean = "git clean -fdX -- {args:docs}"
@@ -122,7 +152,7 @@ lint.pydocstyle.convention = "numpy"
 
 [tool.pytest.ini_options]
 markers = [
-  "openai: mark a test querying OpenAI models.",
+  "real_llm_query: mark a test that sends data to an actual LLM provider.",
 ]
 testpaths = [ "tests" ]
 xfail_strict = true

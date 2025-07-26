@@ -18,6 +18,7 @@ __pycache__/
 # docs
 /docs/generated/
 /docs/_build/
+/docs/notebooks/tests/
 
 # Jupyter
 .ipynb_checkpoints

@@ -9,9 +9,40 @@ class PackageConstants:
     max_markers: int = 200
     min_markers: int = 15
     use_raw: bool = False
-    default_model: str = "gpt-4o-mini"
+    default_model: str = "gpt-4o-mini"  # Legacy default for backward compatibility
+    default_models: dict[str, str] = {
+        "openai": "gpt-4o-mini",
+        "gemini": "gemini-2.5-flash-lite",
+        "anthropic": "claude-3-5-haiku-20241022",
+    }
+    # Supported LLM providers
+    supported_providers: list[str] = ["openai", "gemini", "anthropic"]
     default_cluster_key: str = "leiden"
     cell_type_key: str = "cell_type_harmonized"
+
+    @classmethod
+    def list_all_available_models(cls) -> dict[str, list[str]]:
+        """
+        List all available models across all providers.
+
+        Returns
+        -------
+        Dictionary mapping provider names to lists of available models.
+        """
+        from cell_annotator._providers import get_provider
+
+        all_models = {}
+        for provider_name in cls.supported_providers:
+            try:
+                provider = get_provider(provider_name)
+                models = provider.list_available_models()
+                if models:  # Only include providers with available models
+                    all_models[provider_name] = models
+            except Exception:  # noqa: BLE001
+                # Skip providers that can't be initialized (missing dependencies, API keys, etc.)
+                continue
+
+        return all_models
 
 
 class PromptExamples:

@@ -1,18 +1,17 @@
 """Cell annotator class for annotating cell types across multiple samples."""
 
-import os
-
 import scanpy as sc
-from dotenv import load_dotenv
 from scanpy.tools._rank_genes_groups import _Method
 from tqdm.auto import tqdm
 
 from cell_annotator._constants import PackageConstants
+from cell_annotator._docs import d
 from cell_annotator._logging import logger
 from cell_annotator._response_formats import CellTypeColorOutput, CellTypeListOutput, ExpectedMarkerGeneOutput
-from cell_annotator.base_annotator import BaseAnnotator
-from cell_annotator.sample_annotator import SampleAnnotator
+from cell_annotator.model.base_annotator import BaseAnnotator
+from cell_annotator.model.sample_annotator import SampleAnnotator
 from cell_annotator.utils import (
+    _filter_marker_genes_to_adata,
     _format_annotation,
     _get_consistent_ordering,
     _get_unique_cell_types,
@@ -21,28 +20,27 @@ from cell_annotator.utils import (
 )
 
 
+@d.dedent
 class CellAnnotator(BaseAnnotator):
     """
-    Main class for annotating cell types, including handling multiple samples.
+    Main class for annotating cell types across multiple samples.
+
+    Orchestrates the annotation workflow by creating SampleAnnotator instances for
+    each sample, coordinating marker gene computation, cell type annotation, and
+    harmonizing results across samples. Supports any LLM provider backend.
 
     Parameters
     ----------
-    adata
-        Full AnnData object with multiple samples.
-    sample_key
-        Key in :attr:`~anndata.AnnData.obs` indicating batch membership.
-    species
-        Species name.
-    tissue
-        Tissue name.
-    stage
-        Developmental stage.
-    cluster_key
-        Key of the cluster column in adata.obs.
-    model
-        OpenAI model name.
-    max_completion_tokens
-        Maximum number of tokens for OpenAI queries.
+    %(adata)s
+    %(sample_key)s
+    %(species)s
+    %(tissue)s
+    %(stage)s
+    %(cluster_key)s
+    %(model)s
+    %(max_completion_tokens)s
+    %(provider)s
+    %(api_key)s
     """
 
     def __init__(
@@ -53,12 +51,15 @@ class CellAnnotator(BaseAnnotator):
         stage: str = "adult",
         cluster_key: str = PackageConstants.default_cluster_key,
         sample_key: str | None = None,
-        model: str = PackageConstants.default_model,
+        model: str | None = None,
         max_completion_tokens: int | None = None,
+        provider: str | None = None,
+        api_key: str | None = None,
     ):
-        super().__init__(species, tissue, stage, cluster_key, model, max_completion_tokens)
+        super().__init__(species, tissue, stage, cluster_key, model, max_completion_tokens, provider, api_key)
         self.adata = adata
         self.sample_key = sample_key
+        self._api_key = api_key  # Store API key for passing to SampleAnnotators
 
         self.sample_annotators: dict[str, SampleAnnotator] = {}
         self.expected_cell_types: list[str] = []
@@ -67,28 +68,56 @@ class CellAnnotator(BaseAnnotator):
         self.cell_type_key: str = PackageConstants.cell_type_key
         self.global_cell_type_list: list[str] | None = None
 
-        # laod environmental variables
-        load_dotenv()
-
-        # Check if the environment variable OPENAI_API_KEY is set
-        if os.getenv("OPENAI_API_KEY"):
-            logger.info("The environment variable `OPENAI_API_KEY` is set (that's good).")
-        else:
-            logger.warning(
-                "The environment variable `OPENAI_API_KEY` is not set. Head over to https://platform.openai.com/api-keys to get a key and store it in an .env file."
-            )
-
         # Initialize SampleAnnotators for each batch
         self._initialize_sample_annotators()
 
-    def __repr__(self):
-        sample_summary = ", ".join(f"'{sample_id}'" for sample_id in self.sample_annotators)
-        return (
-            f"CellAnnotator(model={self.model!r}, species={self.species!r}, "
-            f"tissue={self.tissue!r}, stage={self.stage!r}, cluster_key={self.cluster_key!r}, "
-            f"sample_key={self.sample_key!r})\n"
-            f"with `{len(self.sample_annotators)!r}` sample(s) in `.sample_annotators`: {sample_summary}"
-        )
+    def __repr__(self) -> str:
+        """Return a string representation of the CellAnnotator."""
+        lines = []
+        lines.append(f"🧬 {self.__class__.__name__}")
+        lines.append("=" * (len(self.__class__.__name__) + 3))
+
+        # Biological context
+        lines.append(f"📋 Species: {self.species}")
+        lines.append(f"🔬 Tissue: {self.tissue}")
+        lines.append(f"⏳ Stage: {self.stage}")
+        lines.append(f"🔗 Cluster key: {self.cluster_key}")
+        lines.append(f"🔬 Sample key: {self.sample_key}")
+
+        # Model configuration
+        lines.append("")
+        lines.append(f"🤖 Provider: {self._provider_name}")
+        lines.append(f"🧠 Model: {self.model}")
+        if self.max_completion_tokens:
+            lines.append(f"🎚️ Max tokens: {self.max_completion_tokens}")
+
+        # Status
+        lines.append("")
+        try:
+            test_result = self.test_query()
+            status = "✅ Ready" if test_result else "❌ Not working"
+        except Exception as e:  # noqa: BLE001
+            # Catch all exceptions during test (API errors, invalid models, etc.)
+            logger.debug("Status check failed: %s", str(e))
+            status = "⚠️ Unknown"
+        lines.append(f"🔋 Status: {status}")
+
+        # Sample information
+        lines.append("")
+        lines.append(f"📊 Samples: {len(self.sample_annotators)}")
+        if self.sample_annotators:
+            sample_list = list(self.sample_annotators.keys())
+            if len(sample_list) <= 5:
+                # Show all samples if 5 or fewer
+                sample_summary = ", ".join(f"'{sample}'" for sample in sample_list)
+            else:
+                # Show first 3 and last 2 with ellipsis
+                first_samples = ", ".join(f"'{sample}'" for sample in sample_list[:3])
+                last_samples = ", ".join(f"'{sample}'" for sample in sample_list[-2:])
+                sample_summary = f"{first_samples}, ..., {last_samples}"
+            lines.append(f"🏷️  Sample IDs: {sample_summary}")
+
+        return "\n".join(lines)
 
     def _initialize_sample_annotators(self) -> None:
         """Create a SampleAnnotator for each batch."""
@@ -113,18 +142,30 @@ class CellAnnotator(BaseAnnotator):
                 cluster_key=self.cluster_key,
                 model=self.model,
                 max_completion_tokens=self.max_completion_tokens,
+                provider=self._provider_name,
+                api_key=self._api_key,  # Pass API key to SampleAnnotator
+                _skip_validation=True,  # Skip validation since parent already validated
             )
 
         # sort by keys for visual pleasure
         self.sample_annotators = _try_sorting_dict_by_keys(self.sample_annotators)
 
-    def get_expected_cell_type_markers(self, n_markers: int = 5) -> None:
+    @d.dedent
+    def get_expected_cell_type_markers(
+        self,
+        n_markers: int = 5,
+        filter_to_var_names: bool = True,
+        provide_var_names: bool = True,
+    ) -> None:
         """Get expected cell types and marker genes.
 
         Parameters
         ----------
-        n_markers
-            Number of marker genes per cell type.
+        %(n_markers)s
+        filter_to_var_names
+            Whether to filter marker genes to only include those present in `adata.var_names`
+        provide_var_names
+            If True, include the available gene names in the prompt and instruct the model to restrict itself to this set.
 
         Returns
         -------
@@ -133,7 +174,7 @@ class CellAnnotator(BaseAnnotator):
         - `self.expected_marker_genes`
         """
         logger.info("Querying cell types.")
-        res_types = self.query_openai(
+        res_types = self.query_llm(
             instruction=self.prompts.get_cell_type_prompt(),
             response_format=CellTypeListOutput,
         )
@@ -141,24 +182,32 @@ class CellAnnotator(BaseAnnotator):
         logger.info("Writing expected cell types to `self.expected_cell_types`")
         self.expected_cell_types = res_types.cell_type_list
 
-        marker_gene_prompt = [
-            {"role": "assistant", "content": "; ".join(self.expected_cell_types) if self.expected_cell_types else ""},
-            {"role": "user", "content": self.prompts.get_cell_type_marker_prompt(n_markers)},
-        ]
+        # Compose a single prompt that includes the cell types directly in the prompt string
+        marker_gene_prompt = self.prompts.get_cell_type_marker_prompt(
+            n_markers,
+            cell_types=self.expected_cell_types,
+            var_names=list(self.adata.var_names) if provide_var_names else None,
+        )
 
         logger.info("Querying cell type markers.")
-        res_markers = self.query_openai(
-            instruction=self.prompts.get_cell_type_prompt(),
-            other_messages=marker_gene_prompt,
+        res_markers = self.query_llm(
+            instruction=marker_gene_prompt,
             response_format=ExpectedMarkerGeneOutput,
         )
 
         logger.info("Writing expected marker genes to `self.expected_marker_genes`.")
-        self.expected_marker_genes = {
+        raw_marker_genes = {
             cell_type_markers.cell_type_name: cell_type_markers.expected_marker_genes
             for cell_type_markers in res_markers.expected_markers_per_cell_type
         }
 
+        # Filter marker genes to available genes if requested
+        if filter_to_var_names:
+            self.expected_marker_genes = _filter_marker_genes_to_adata(raw_marker_genes, self.adata)
+        else:
+            self.expected_marker_genes = raw_marker_genes
+
+    @d.dedent
     def get_cluster_markers(
         self,
         method: _Method | None = "wilcoxon",
@@ -172,25 +221,18 @@ class CellAnnotator(BaseAnnotator):
 
         Parameters
         ----------
-        method
-            Method for `sc.tl.rank_genes_groups`
-        min_specificity
-            Minimum specificity
-        min_auc
-            Minimum AUC
-        max_markers
-            Maximum number of markers
-        use_raw
-            Use raw data
-        use_rapids
-            Whether to use rapids for GPU acceleration
+        %(method_rank_genes_groups)s
+        %(min_specificity)s
+        %(min_auc)s
+        %(max_markers)s
+        %(use_raw)s
+        %(use_rapids)s
 
         Returns
         -------
         Updates the following attributes:
         - `self.marker_dfs`
         - `self.marker_genes`
-
         """
         logger.info("Iterating over samples to compute cluster marker genes. ")
 
@@ -208,6 +250,7 @@ class CellAnnotator(BaseAnnotator):
                 use_rapids=use_rapids,
             )
 
+    @d.dedent
     def annotate_clusters(
         self, min_markers: int = 2, restrict_to_expected: bool = False, key_added: str = "cell_type_predicted"
     ):
@@ -215,12 +258,9 @@ class CellAnnotator(BaseAnnotator):
 
         Parameters
         ----------
-        min_markers
-            Minimal number of required marker genes per cluster.
-        key_added
-            Name of the key in .obs where updated annotations will be written
-        restrict_to_expected
-            If True, only use expected cell types for annotation.
+        %(min_markers)s
+        %(key_added)s
+        %(restrict_to_expected)s
 
         Returns
         -------
@@ -228,7 +268,6 @@ class CellAnnotator(BaseAnnotator):
         - `self.annotation_df`
         - `self.adata.obs[key_added]`
         - `self.annotated`
-
         """
         if self.expected_marker_genes is None:
             logger.debug(
@@ -307,9 +346,9 @@ class CellAnnotator(BaseAnnotator):
 
         deduplication_prompt = self.prompts.get_duplicate_removal_prompt(list_with_duplicates=", ".join(cell_types))
 
-        # query openai
+        # query llm
         logger.info("Querying cell-type label de-duplication.")
-        response = self.query_openai(
+        response = self.query_llm(
             instruction=deduplication_prompt,
             response_format=CellTypeListOutput,
         )
@@ -327,7 +366,7 @@ class CellAnnotator(BaseAnnotator):
         """Assign consistent ordering across cell type annotations.
 
         Note that for multiple samples with many clusters each, this typically requires a more powerful model
-        like `gpt-4o` to work well. This method replaces underscores with spaces.
+        to work well. This method replaces underscores with spaces.
 
         Parameters
         ----------
@@ -379,7 +418,7 @@ class CellAnnotator(BaseAnnotator):
                 self.adata.uns[f"{obs_key}_colors"] = name_and_color.values()
 
     def _get_cluster_ordering(self, keys: list[str], unknown_key: str = PackageConstants.unknown_name) -> list[str]:
-        """Query OpenAI for relational cluster ordering.
+        """Query LLM for relational cluster ordering.
 
         Parameters
         ----------
@@ -396,9 +435,9 @@ class CellAnnotator(BaseAnnotator):
         unique_cell_types = _get_unique_cell_types(self.adata, keys, unknown_key)
         order_prompt = self.prompts.get_order_prompt(unique_cell_types=", ".join(unique_cell_types))
 
-        # query openai and format the response as a dict
+        # query llm and format the response as a dict
         logger.info("Querying label ordering.")
-        response = self.query_openai(
+        response = self.query_llm(
             instruction=order_prompt,
             response_format=CellTypeListOutput,
         )
@@ -408,7 +447,7 @@ class CellAnnotator(BaseAnnotator):
     def _get_cluster_colors(
         self, clusters: str | list[str], unknown_key: str = PackageConstants.unknown_name
     ) -> dict[str, str]:
-        """Query OpenAI for relational cluster colors.
+        """Query LLM for relational cluster colors.
 
         Parameters
         ----------
@@ -434,7 +473,7 @@ class CellAnnotator(BaseAnnotator):
         cluster_names = ", ".join(cl for cl in cluster_list if cl != unknown_key)
 
         logger.info("Querying cluster colors.")
-        response = self.query_openai(
+        response = self.query_llm(
             instruction=self.prompts.get_color_prompt(cluster_names), response_format=CellTypeColorOutput
         )
         color_dict = {

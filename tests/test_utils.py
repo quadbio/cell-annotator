@@ -6,6 +6,7 @@ import pytest
 import scanpy as sc
 
 from cell_annotator._response_formats import OutputForTesting
+from cell_annotator.model._providers import OpenAIProvider
 from cell_annotator.utils import (
     _filter_by_category_size,
     _format_annotation,
@@ -13,7 +14,6 @@ from cell_annotator.utils import (
     _get_consistent_ordering,
     _get_specificity,
     _get_unique_cell_types,
-    _query_openai,
     _shuffle_cluster_key_categories_within_sample,
     _try_sorting_dict_by_keys,
     _validate_list_mapping,
@@ -101,14 +101,16 @@ class TestUtils:
         with pytest.raises(ValueError):
             _validate_list_mapping(list_a, ["d", "e", "f"])
 
-    @patch("cell_annotator.utils.OpenAI")
-    def test_query_openai(self, MockOpenAI):
+    @patch("openai.OpenAI")
+    def test_openai_provider(self, MockOpenAI):
+        """Test OpenAI provider implementation."""
         mock_client = MockOpenAI.return_value
         mock_response = MagicMock()
         mock_response.choices[0].message.parsed = OutputForTesting(parsed_response="parsed_response")
-        mock_client.beta.chat.completions.parse.return_value = mock_response
+        mock_client.chat.completions.parse.return_value = mock_response
 
-        response = _query_openai(
+        provider = OpenAIProvider()
+        response = provider.query(
             agent_description="Test agent",
             instruction="Test instruction",
             model="gpt-4o-mini",
@@ -116,11 +118,13 @@ class TestUtils:
         )
 
         assert response.parsed_response == "parsed_response"
-        mock_client.beta.chat.completions.parse.assert_called_once()
+        mock_client.chat.completions.parse.assert_called_once()
 
-    @pytest.mark.openai()
-    def test_query_openai_actual(self):
-        response = _query_openai(
+    @pytest.mark.real_llm_query()
+    def test_openai_provider_actual(self):
+        """Test actual OpenAI provider call."""
+        provider = OpenAIProvider()
+        response = provider.query(
             agent_description="Test agent",
             instruction="Test instruction",
             model="gpt-4o-mini",

@@ -4,87 +4,14 @@ import re
 from collections.abc import Sequence
 
 import numpy as np
-import openai
 import pandas as pd
 import scanpy as sc
-from openai import OpenAI
 from scipy.sparse import issparse
 from sklearn.metrics import roc_auc_score
 
 from cell_annotator._constants import PackageConstants
 from cell_annotator._logging import logger
-from cell_annotator._response_formats import BaseOutput
-
-try:
-    import cupy as cp
-    from cuml.metrics import roc_auc_score as gpu_roc_auc_score
-
-    RAPIDS_AVAILABLE = True
-except ImportError:
-    RAPIDS_AVAILABLE = False
-
-
-def _query_openai(
-    agent_description: str,
-    instruction: str,
-    model: str,
-    response_format: type[BaseOutput],
-    other_messages: list | None = None,
-    max_completion_tokens: int | None = None,
-) -> BaseOutput:
-    """
-    Query the OpenAI API with the given agent description and instruction.
-
-    Parameters
-    ----------
-    agent_description
-        Description of the agent.
-    instruction
-        Instruction for the agent.
-    model
-        Model to use for the query. Examples: 'gpt-4o-mini', 'gpt-4o'.
-    response_format
-        Response format class to use for parsing the response.
-    other_messages
-        Additional messages to include in the query.
-    max_completion_tokens
-        Maximum number of tokens to use for the query.
-
-    Returns
-    -------
-    Parsed response from the OpenAI API.
-    """
-    client = OpenAI()
-
-    if other_messages is None:
-        other_messages = []
-    try:
-        completion = client.beta.chat.completions.parse(
-            model=model,
-            # messages=[{"role": "developer", "content": agent_description}, {"role": "user", "content": instruction}]
-            messages=[{"role": "user", "content": instruction}] + other_messages,
-            response_format=response_format,
-            max_completion_tokens=max_completion_tokens,
-        )
-
-        response = completion.choices[0].message
-        if response.parsed:
-            return response.parsed
-        elif response.refusal:
-            failure_reason = f"Model refused to respond: {response.refusal}"
-            logger.warning(failure_reason)
-            return response_format.default_failure(failure_reason=failure_reason)
-        else:
-            failure_reason = "Unknown model failure."
-            logger.warning(failure_reason)
-            return response_format.default_failure(failure_reason=failure_reason)
-    except openai.LengthFinishReasonError:
-        failure_reason = "Maximum number of tokens exceeded. Try increasing `max_completion_tokens`."
-        logger.warning(failure_reason)
-        return response_format.default_failure(failure_reason=failure_reason)
-
-    except openai.OpenAIError as e:
-        raise e
+from cell_annotator.check import check_deps
 
 
 def _get_specificity(
@@ -137,10 +64,9 @@ def _get_auc(
         values = values.toarray()
 
     if use_rapids:
-        if not RAPIDS_AVAILABLE:
-            raise ImportError(
-                "RAPIDS libraries (CuPy and cuML) are not installed. Please install them through `rapids_singlecell` to use GPU acceleration. You can follow the guide from https://rapids-singlecell.readthedocs.io/en/latest/Installation.html"
-            )
+        check_deps("cupy", "cuml")
+        import cupy as cp
+        from cuml.metrics import roc_auc_score as gpu_roc_auc_score
 
         # Transfer data to GPU
         values_gpu = cp.asarray(values)
@@ -335,3 +261,59 @@ def _validate_list_mapping(list_a: list[str], list_b: list[str], context: str | 
             if removed_elements:
                 error_message += f" Removed elements: {', '.join(removed_elements)}."
             raise ValueError(error_message)
+
+
+def _filter_marker_genes_to_adata(marker_genes: dict[str, list[str]], adata: sc.AnnData) -> dict[str, list[str]]:
+    """Filter marker genes to only include those present in adata.var_names.
+
+    Parameters
+    ----------
+    marker_genes
+        Dictionary mapping cell types to lists of marker genes
+    adata
+        AnnData object containing gene expression data
+
+    Returns
+    -------
+    Dictionary mapping cell types to filtered lists of marker genes
+    """
+    available_genes = set(adata.var_names)
+    available_genes_lower = {g.lower() for g in available_genes}
+    gene_map = {g.lower(): g for g in available_genes}  # map lower-case to original
+    filtered_marker_genes = {}
+    total_filtered = 0
+    removed_cell_types = []
+
+    logger.info("Filtering marker genes to only include those present in adata.var_names.")
+    for cell_type, markers in marker_genes.items():
+        filtered_markers = []
+        filtered_out = set()
+        for gene in markers:
+            gene_l = gene.lower()
+            if gene_l in available_genes_lower:
+                # Use the AnnData var_name capitalization
+                filtered_markers.append(gene_map[gene_l])
+            else:
+                filtered_out.add(gene)
+
+        if filtered_out:
+            total_filtered += len(filtered_out)
+            logger.debug(
+                "Cell type '%s': filtered %d marker genes not found in adata.var_names: %s",
+                cell_type,
+                len(filtered_out),
+                ", ".join(sorted(filtered_out)),
+            )
+
+        if filtered_markers:
+            filtered_marker_genes[cell_type] = filtered_markers
+        else:
+            removed_cell_types.append(cell_type)
+
+    if total_filtered > 0 or removed_cell_types:
+        logger.info(
+            "Filtered %d marker genes and removed %d cell types with no marker genes left after filtering.",
+            total_filtered,
+            len(removed_cell_types),
+        )
+    return filtered_marker_genes
