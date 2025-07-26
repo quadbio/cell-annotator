@@ -2,16 +2,10 @@ from unittest.mock import patch
 
 import pandas as pd
 import pytest
-from tests.utils import (
-    expected_marker_genes,
-    fibroblast_cell_types,
-    neuronal_cell_types,
-)
+from flaky import flaky
+from tests.utils import expected_marker_genes, fibroblast_cell_types, neuronal_cell_types
 
-from cell_annotator._response_formats import (
-    CellTypeMappingOutput,
-    PredictedCellTypeOutput,
-)
+from cell_annotator._response_formats import CellTypeMappingOutput, PredictedCellTypeOutput
 
 
 class TestSampleAnnotator:
@@ -59,6 +53,7 @@ class TestSampleAnnotator:
         for _cluster, genes in sample_annotator.marker_genes.items():
             assert len(genes) > 0
 
+    @flaky
     @pytest.mark.real_llm_query()
     def test_annotate_clusters_actual(self, sample_annotator):
         sample_annotator.get_cluster_markers(min_auc=0.6)

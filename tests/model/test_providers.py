@@ -3,6 +3,7 @@
 import os
 
 import pytest
+from flaky import flaky
 
 from cell_annotator._response_formats import BaseOutput
 from cell_annotator.model._providers import AnthropicProvider, GeminiProvider, OpenAIProvider
@@ -65,6 +66,7 @@ class TestLLMProviders:
 class TestOpenAIProvider:
     """Isolated tests for OpenAI provider."""
 
+    @flaky
     @pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="OPENAI_API_KEY not available")
     @pytest.mark.real_llm_query()
     def test_openai_list_models_real(self):
@@ -78,6 +80,7 @@ class TestOpenAIProvider:
         model_names = [model.lower() for model in models]
         assert any("gpt" in model for model in model_names)
 
+    @flaky
     @pytest.mark.skipif(not os.getenv("OPENAI_API_KEY"), reason="OPENAI_API_KEY not available")
     @pytest.mark.real_llm_query()
     def test_openai_query_real(self):
@@ -118,6 +121,7 @@ class TestOpenAIProvider:
 class TestGeminiProvider:
     """Isolated tests for Gemini provider."""
 
+    @flaky
     @pytest.mark.skipif(not os.getenv("GEMINI_API_KEY"), reason="GEMINI_API_KEY not available")
     @pytest.mark.real_llm_query()
     def test_gemini_list_models_real(self):
@@ -131,6 +135,7 @@ class TestGeminiProvider:
         model_names = [model.lower() for model in models]
         assert any("gemini" in model for model in model_names)
 
+    @flaky
     @pytest.mark.skipif(not os.getenv("GEMINI_API_KEY"), reason="GEMINI_API_KEY not available")
     @pytest.mark.real_llm_query()
     def test_gemini_query_real(self):
@@ -163,6 +168,7 @@ class TestGeminiProvider:
 class TestAnthropicProvider:
     """Isolated tests for Anthropic provider."""
 
+    @flaky
     @pytest.mark.skipif(not os.getenv("ANTHROPIC_API_KEY"), reason="ANTHROPIC_API_KEY not available")
     @pytest.mark.real_llm_query()
     def test_anthropic_list_models_real(self):
@@ -176,6 +182,7 @@ class TestAnthropicProvider:
         model_names = [model.lower() for model in models]
         assert any("claude" in model for model in model_names)
 
+    @flaky
     @pytest.mark.skipif(not os.getenv("ANTHROPIC_API_KEY"), reason="ANTHROPIC_API_KEY not available")
     @pytest.mark.real_llm_query()
     def test_anthropic_query_real(self):
@@ -221,6 +228,7 @@ class TestProviderIntegration:
             assert provider is not None
             assert provider.__class__.__name__.lower().startswith(name)
 
+    @flaky
     @pytest.mark.skipif(
         not any(os.getenv(key) for key in ["OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY"]),
         reason="No API keys available for testing",
