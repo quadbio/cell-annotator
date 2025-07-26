@@ -9,9 +9,28 @@ and this project adheres to [Semantic Versioning][]. Full commit history is avai
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 [commit logs]: https://github.com/quadbio/cell-annotator/commits
 
-## Version 0.1
+## Version 0.2
 
 ### Unreleased
+
+### 0.2.0 (2025-07-26)
+
+#### Added
+- Added a generic LLM backend that supports OpenAI, Claude and Gemini models {pr}`53`
+- Add the possibility to provide the current gene set when querying expected marker genes {pr}`53`
+- Add the possibility to filter expected marker genes to those presend in AnnData {pr}`53`
+- Add a new tutorial on spatial data annotation {pr}`53`
+- Added and improved tests for the new classes (e.g. ObsBeautifier, LLMBackend, etc) {pr}`53`
+- For each backend, add a small `test_query` method which can be used for diagnostics {pr}`53`
+
+#### Changed
+- Moved the `reorder_and_color` utility into a new class: `ObsBeautifier` {pr}`54`
+- Improved class representations throughout the package  {pr}`53`
+
+#### Fixed
+- Fix the `ObsBeautifier` modifying cluster colors when only their order should be updated {pr}`54`
+
+## Version 0.1
 
 ### 0.1.5 (2025-07-24)
 
