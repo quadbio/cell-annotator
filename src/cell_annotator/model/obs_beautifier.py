@@ -200,7 +200,19 @@ class ObsBeautifier(LLMInterface):
             response_format=CellTypeListOutput,
         )
 
-        return cast(CellTypeListOutput, response).cell_type_list
+        cell_type_list = cast(CellTypeListOutput, response).cell_type_list
+
+        # Remove duplicates while preserving order
+        seen = set()
+        deduplicated_list = []
+        for item in cell_type_list:
+            if item not in seen:
+                seen.add(item)
+                deduplicated_list.append(item)
+
+        logger.debug("Removed %d duplicate(s) from LLM response", len(cell_type_list) - len(deduplicated_list))
+
+        return deduplicated_list
 
     def _get_cluster_colors(
         self, clusters: str | list[str], unknown_key: str = PackageConstants.unknown_name

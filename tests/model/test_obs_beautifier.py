@@ -146,3 +146,42 @@ class TestObsBeautifier:
 
         assert reordered_color_map_2["A"] == original_colors_2["A"]
         assert reordered_color_map_2["C"] == original_colors_2["C"]
+
+    @flaky
+    @pytest.mark.real_llm_query()
+    def test_reorder_with_complex_category_names(self, cell_annotator_single):
+        """Test reordering with complex category names that might confuse the LLM."""
+
+        cell_annotator = cell_annotator_single
+        adata = cell_annotator.adata
+
+        # Create categories similar to the neurotransmitter transporter example
+        # that could cause the LLM to return duplicates
+        complex_categories = [
+            "NT-CHOL",
+            "NT-GABA",
+            "NT-GABA NT-VGLUT",
+            "NT-GLY",
+            "NT-GLY NT-VGLUT",
+            "NT-SER",
+            "NT-SER NT-VGLUT",
+            "NT-VGLUT",
+        ]
+
+        # Assign these categories cyclically to cells
+        n_cats = len(complex_categories)
+        category_assignments = [complex_categories[i % n_cats] for i in range(len(adata))]
+        adata.obs["complex_categories"] = pd.Categorical(category_assignments)
+
+        # This should not raise a ValueError about duplicate categories
+        beautifier = ObsBeautifier(adata=adata)
+        beautifier.reorder_and_color(keys=["complex_categories"], assign_colors=False)
+
+        # Verify that the categories are still unique and match the original set
+        final_categories = set(adata.obs["complex_categories"].cat.categories)
+        original_categories = set(complex_categories)
+        assert final_categories == original_categories
+
+        # Verify no duplicates in the final category list
+        final_categories_list = list(adata.obs["complex_categories"].cat.categories)
+        assert len(final_categories_list) == len(set(final_categories_list))
