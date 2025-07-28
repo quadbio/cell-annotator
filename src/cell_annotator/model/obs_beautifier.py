@@ -157,7 +157,7 @@ class ObsBeautifier(LLMInterface):
         self,
         keys: list[str] | str,
         unknown_key: str = PackageConstants.unknown_name,
-        min_color_distance: float = 10.0,
+        min_color_distance: float = PackageConstants.default_min_color_distance,
         retry_similar_colors: bool | None = None,
     ) -> None:
         """Assign consistent colors across cell type annotations.
@@ -239,7 +239,10 @@ class ObsBeautifier(LLMInterface):
                     logger.info("Attempting to fix similar colors with targeted LLM feedback...")
                     try:
                         updated_colors = self._get_cluster_colors_with_feedback(
-                            global_names_and_colors, problematic_pairs, unknown_key=unknown_key
+                            global_names_and_colors,
+                            problematic_pairs,
+                            unknown_key=unknown_key,
+                            min_color_distance=min_color_distance,
                         )
 
                         # Validate the updated colors
@@ -385,7 +388,7 @@ class ObsBeautifier(LLMInterface):
         return color_dict
 
     def _validate_color_distinguishability(
-        self, colors: list[str], min_delta_e: float = 10.0
+        self, colors: list[str], min_delta_e: float = PackageConstants.default_min_color_distance
     ) -> tuple[bool, list[tuple[str, str, float]]]:
         """Validate that colors are sufficiently distinguishable.
 
@@ -403,7 +406,7 @@ class ObsBeautifier(LLMInterface):
             - ΔE 1-3: Perceptible through close observation
             - ΔE 3-5: Perceptible at a glance
             - ΔE > 5: Colors appear different
-            - ΔE > 10: Very different colors (recommended for data visualization)
+            - ΔE > 10: Very different colors
 
         Returns
         -------
@@ -451,6 +454,7 @@ class ObsBeautifier(LLMInterface):
         current_colors: dict[str, str],
         problematic_pairs: list[tuple[str, str, float]],
         unknown_key: str = PackageConstants.unknown_name,
+        min_color_distance: float = PackageConstants.default_min_color_distance,
     ) -> dict[str, str]:
         """Re-query LLM with feedback about problematic color pairs.
 
@@ -462,6 +466,8 @@ class ObsBeautifier(LLMInterface):
             List of (color1, color2, distance) tuples that are too similar
         unknown_key
             Name of the unknown category
+        min_color_distance
+            Minimum Delta E distance for colors to be considered distinguishable
 
         Returns
         -------
@@ -512,9 +518,9 @@ class ObsBeautifier(LLMInterface):
             current_assignments=assignments_str,
             problems=problems_str,
             cell_types_to_update=cell_types_list,
+            min_color_distance=min_color_distance,
         )
 
-        logger.debug("Feedback prompt: %s", feedback_prompt)
         response = self.query_llm(
             instruction=feedback_prompt,
             response_format=CellTypeColorOutput,

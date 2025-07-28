@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cell_annotator._constants import PromptExamples
+from cell_annotator._constants import PackageConstants, PromptExamples
 
 
 @dataclass
@@ -195,6 +195,7 @@ class Prompts:
         current_assignments: str,
         problems: str,
         cell_types_to_update: str,
+        min_color_distance: float = PackageConstants.default_min_color_distance,
     ) -> str:
         """Generate the color feedback prompt for fixing similar colors."""
         return f"""
@@ -208,7 +209,7 @@ class Prompts:
 
         Follow these rules:
         1. Keep colors biologically meaningful and appropriate for the cell types.
-        2. Ensure NEW colors are visually distinct from ALL existing colors (minimum ΔE=10).
+        2. Ensure NEW colors are visually distinct from ALL existing colors (minimum ΔE={min_color_distance:.1f}).
         3. Do NOT change colors for other cell types - they are working fine.
         4. Use hexadecimal color codes (e.g., "#1f77b4").
         5. Do not use white, black, or grey colors.
