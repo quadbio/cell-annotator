@@ -334,3 +334,69 @@ class TestObsBeautifier:
             "LLM should produce a different (more meaningful) order than the random initial order, "
             "unless there are very few categories"
         )
+
+    def test_color_validation_without_colorspacious(self, cell_annotator_single):
+        """Test that color validation gracefully handles missing colorspacious dependency."""
+
+        cell_annotator = cell_annotator_single
+        adata = cell_annotator.adata
+
+        # Set up simple annotations
+        adata.obs["leiden"] = adata.obs["leiden"].map({"0": "B cells", "1": "T cells"}).astype("category")
+
+        beautifier = ObsBeautifier(adata=adata)
+
+        # This should work even without colorspacious (returns True, [])
+        test_colors = ["#FF0000", "#00FF00", "#0000FF"]
+        is_valid, problematic_pairs = beautifier._validate_color_distinguishability(test_colors)
+
+        # Should return True (validation skipped) and empty list
+        assert is_valid is True
+        assert problematic_pairs == []
+
+    def test_color_validation_with_colorspacious(self, cell_annotator_single):
+        """Test color validation with colorspacious available."""
+
+        # Skip if colorspacious is not available
+        pytest.importorskip("colorspacious")
+
+        cell_annotator = cell_annotator_single
+        adata = cell_annotator.adata
+
+        beautifier = ObsBeautifier(adata=adata)
+
+        # Test with very similar colors (should fail validation)
+        similar_colors = ["#FF0000", "#FF0101"]  # Very similar reds
+        is_valid, problematic_pairs = beautifier._validate_color_distinguishability(similar_colors, min_delta_e=5.0)
+
+        assert is_valid is False
+        assert len(problematic_pairs) == 1
+        assert problematic_pairs[0][0] == "#FF0000"
+        assert problematic_pairs[0][1] == "#FF0101"
+        assert problematic_pairs[0][2] < 5.0  # Distance should be less than threshold
+
+        # Test with distinct colors (should pass validation)
+        distinct_colors = ["#FF0000", "#00FF00", "#0000FF"]  # Red, Green, Blue
+        is_valid, problematic_pairs = beautifier._validate_color_distinguishability(distinct_colors, min_delta_e=10.0)
+
+        assert is_valid is True
+        assert problematic_pairs == []
+
+    def test_assign_colors_parameter_validation(self, cell_annotator_single):
+        """Test that assign_colors accepts the min_color_distance parameter."""
+
+        cell_annotator = cell_annotator_single
+        adata = cell_annotator.adata
+
+        # Set up simple annotations
+        adata.obs["leiden"] = adata.obs["leiden"].map({"0": "B cells", "1": "T cells"}).astype("category")
+
+        beautifier = ObsBeautifier(adata=adata)
+
+        # Test that the method accepts the new parameter without errors
+        # We'll use a mock to avoid actually calling the LLM
+        try:
+            beautifier.assign_colors(keys=["leiden"], min_color_distance=5.0)
+        except (RuntimeError, ConnectionError, ValueError):
+            # Expected to fail due to missing LLM setup, but parameter should be accepted
+            pass

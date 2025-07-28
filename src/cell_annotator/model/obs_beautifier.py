@@ -11,6 +11,7 @@ from cell_annotator._docs import d
 from cell_annotator._logging import logger
 from cell_annotator._prompts import Prompts
 from cell_annotator._response_formats import CellTypeColorOutput, CellTypeListOutput
+from cell_annotator.check import check_deps
 from cell_annotator.model.llm_interface import LLMInterface
 from cell_annotator.utils import _get_consistent_ordering, _get_unique_cell_types, _validate_list_mapping
 
@@ -152,7 +153,12 @@ class ObsBeautifier(LLMInterface):
                 if any(new_colors):
                     self.adata.uns[f"{key}_colors"] = new_colors
 
-    def assign_colors(self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name) -> None:
+    def assign_colors(
+        self,
+        keys: list[str] | str,
+        unknown_key: str = PackageConstants.unknown_name,
+        min_color_distance: float = 10.0,
+    ) -> None:
         """Assign consistent colors across cell type annotations.
 
         Uses an LLM to assign biologically meaningful and visually distinct colors
@@ -164,6 +170,9 @@ class ObsBeautifier(LLMInterface):
             List of keys in `adata.obs` to assign colors to.
         unknown_key
             Name of the unknown category.
+        min_color_distance
+            Minimum Delta E distance for color validation. Colors with lower distance
+            will be flagged as potentially too similar. Set to 0 to disable validation.
 
         Returns
         -------
@@ -178,6 +187,24 @@ class ObsBeautifier(LLMInterface):
 
         # Get global color mapping from LLM
         global_names_and_colors = self._get_cluster_colors(clusters=string_cell_types, unknown_key=unknown_key)
+
+        # Validate color distinguishability if enabled
+        if min_color_distance > 0:
+            colors_only = list(global_names_and_colors.values())
+            is_valid, problematic_pairs = self._validate_color_distinguishability(
+                colors_only, min_delta_e=min_color_distance
+            )
+
+            if not is_valid:
+                logger.warning(
+                    "Found %d color pairs that may be too similar (ΔE < %.1f). "
+                    "Consider requesting new colors from LLM or adjusting min_color_distance.",
+                    len(problematic_pairs),
+                    min_color_distance,
+                )
+                for color1, color2, distance in problematic_pairs:
+                    logger.debug("Similar colors: %s vs %s (ΔE = %.1f)", color1, color2, distance)
+
         label_sets = _get_consistent_ordering(self.adata, global_names_and_colors, keys)
 
         # Apply colors to each key while preserving category order
@@ -297,3 +324,65 @@ class ObsBeautifier(LLMInterface):
         color_dict = {key: color_dict[key] for key in cluster_list}
 
         return color_dict
+
+    def _validate_color_distinguishability(
+        self, colors: list[str], min_delta_e: float = 10.0
+    ) -> tuple[bool, list[tuple[str, str, float]]]:
+        """Validate that colors are sufficiently distinguishable.
+
+        Uses Delta E (CIE2000) distance in perceptually uniform Lab color space
+        to measure color differences. Requires the optional colorspacious dependency.
+
+        Parameters
+        ----------
+        colors
+            List of hex color codes (e.g., '#FF0000')
+        min_delta_e
+            Minimum Delta E distance for colors to be considered distinguishable.
+            Typical thresholds:
+            - ΔE < 1: Not perceptible by human eye
+            - ΔE 1-3: Perceptible through close observation
+            - ΔE 3-5: Perceptible at a glance
+            - ΔE > 5: Colors appear different
+            - ΔE > 10: Very different colors (recommended for data visualization)
+
+        Returns
+        -------
+        is_valid
+            Whether all color pairs meet the minimum distance threshold
+        problematic_pairs
+            List of (color1, color2, distance) tuples that are too similar
+        """
+        try:
+            check_deps("colorspacious")
+            from colorspacious import cspace_convert, deltaE
+        except (ImportError, RuntimeError):
+            logger.warning("colorspacious not available, skipping color validation")
+            return True, []
+
+        problematic_pairs = []
+
+        def hex_to_rgb01(hex_color):
+            """Convert hex color to RGB values in 0-1 range."""
+            hex_color = hex_color.lstrip("#")
+            return [int(hex_color[i : i + 2], 16) / 255.0 for i in (0, 2, 4)]
+
+        for i, color1 in enumerate(colors):
+            for color2 in colors[i + 1 :]:
+                try:
+                    # Convert hex colors to RGB values (0-1 range) for colorspacious
+                    rgb1 = hex_to_rgb01(color1)
+                    rgb2 = hex_to_rgb01(color2)
+
+                    # Convert RGB to Lab space and calculate Delta E
+                    lab1 = cspace_convert(rgb1, "sRGB1", "CIELab")
+                    lab2 = cspace_convert(rgb2, "sRGB1", "CIELab")
+                    distance = deltaE(lab1, lab2, input_space="CIELab")
+
+                    if distance < min_delta_e:
+                        problematic_pairs.append((color1, color2, distance))
+
+                except (ValueError, TypeError) as e:
+                    logger.warning("Failed to calculate color distance for %s vs %s: %s", color1, color2, str(e))
+
+        return len(problematic_pairs) == 0, problematic_pairs

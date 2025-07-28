@@ -61,6 +61,8 @@ INSTALL_HINTS = types.SimpleNamespace(
     "or pip install google-genai",
     anthropic="To use Anthropic Claude models, install with: pip install 'cell-annotator[anthropic]' "
     "or pip install anthropic",
+    colorspacious="To enable color similarity validation, install with: pip install 'cell-annotator[colors]' "
+    "or pip install colorspacious",
     rapids_singlecell="To speed up analysis on GPU, install with: pip install 'cell-annotator[gpu]' "
     "or follow the guide from https://docs.rapids.ai/install/",
     cupy="To speed up GPU computations, install cuPy following the guide from https://docs.rapids.ai/install/",
@@ -73,6 +75,7 @@ CHECKERS = {
         "google.genai", package_name="google-genai", vmin="1.27", install_hint=INSTALL_HINTS.google_genai
     ),
     "anthropic": Checker("anthropic", vmin="0.59", install_hint=INSTALL_HINTS.anthropic),
+    "colorspacious": Checker("colorspacious", vmin="1.1", install_hint=INSTALL_HINTS.colorspacious),
     "rapids-singlecell": Checker(
         "rapids_singlecell", package_name="rapids-singlecell", vmin="0.12", install_hint=INSTALL_HINTS.rapids_singlecell
     ),
