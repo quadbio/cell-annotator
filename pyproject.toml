@@ -44,6 +44,10 @@ optional-dependencies.anthropic = [
   "anthropic>=0.59",
 ]
 
+# Other optional functionality
+optional-dependencies.colors = [
+  "colorspacious>=1.1",
+]
 # Development dependencies
 optional-dependencies.dev = [
   "pre-commit",
@@ -69,7 +73,6 @@ optional-dependencies.doc = [
 optional-dependencies.gemini = [
   "google-genai>=1.27",
 ]
-# Other optional functionality
 optional-dependencies.gpu = [
   "rapids-singlecell>=0.12",
 ]
@@ -80,6 +83,7 @@ optional-dependencies.openai = [
 ]
 optional-dependencies.test = [
   "cell-annotator[all-providers]", # tests use all providers
+  "cell-annotator[colors]",        # tests use color validation
   "coverage",
   "flaky",
   "pytest",

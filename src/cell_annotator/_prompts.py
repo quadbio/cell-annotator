@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from cell_annotator._constants import PromptExamples
+from cell_annotator._constants import PackageConstants, PromptExamples
 
 
 @dataclass
@@ -171,10 +171,11 @@ class Prompts:
 
         Follow these rules:
         1. Use colors that are biologically meaningful: similar cell types should have similar colors (e.g., shades of the same color family, which are still easy to distinguish by eye), and unrelated cell types should have distinct colors.
-        3. Use hexadecimal color codes (e.g., "#1f77b4").
-        4. Do not use white, black, or grey colors.
-        5. Do not modify the order of the cell type labels.
-        6. Include all labels in the color assignment, and do not modify them in any way.
+        2. Use hexadecimal color codes (e.g., "#1f77b4").
+        3. Do not use white, black, or grey colors.
+        4. Do not modify the order of the cell type labels.
+        5. Include all labels in the color assignment, and do not modify them in any way.
+        6. Each cell type must receive a unique color - do not assign identical colors to different cell types.
 
         ### Example:
         If the cell type annotations are:
@@ -187,6 +188,39 @@ class Prompts:
         ```
         - original_cell_type_label: the original cell type label
         - assigned_color: the color assigned to this cell type
+        ```
+        """.strip()
+
+    def get_color_feedback_prompt(
+        self,
+        current_assignments: str,
+        problems: str,
+        cell_types_to_update: str,
+        min_color_distance: float = PackageConstants.default_min_color_distance,
+    ) -> str:
+        """Generate the color feedback prompt for fixing similar colors."""
+        return f"""
+        Current color assignments:
+        {current_assignments}
+
+        PROBLEMS DETECTED:
+        {problems}
+
+        Please provide NEW colors ONLY for these cell types: {cell_types_to_update}
+
+        Follow these rules:
+        1. Keep colors biologically meaningful and appropriate for the cell types.
+        2. Ensure NEW colors are visually distinct from ALL existing colors (minimum ΔE={min_color_distance:.1f}).
+        3. Do NOT assign identical colors to different cell types - each cell type must have a unique color.
+        4. Do NOT change colors for other cell types - they are working fine.
+        5. Use hexadecimal color codes (e.g., "#1f77b4").
+        6. Do not use white, black, or grey colors.
+
+        ### Output format:
+        For each cell type that needs updating, provide output in the following format:
+        ```
+        - original_cell_type_label: the original cell type label
+        - assigned_color: the new color assigned to this cell type
         ```
         """.strip()
 
