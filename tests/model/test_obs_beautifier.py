@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -253,3 +255,82 @@ class TestObsBeautifier:
         # For now, just verify the method exists and can be called
         assert hasattr(beautifier, "assign_colors")
         assert callable(beautifier.assign_colors)
+
+    @flaky
+    @pytest.mark.real_llm_query()
+    def test_reorder_categories_pbmc_realistic_ordering(self, cell_annotator_single):
+        """Test that reordering produces biologically meaningful order for PBMC cell types."""
+
+        cell_annotator = cell_annotator_single
+        adata = cell_annotator.adata
+
+        # Create realistic PBMC cell types in a deliberately "bad" alphabetical order
+        pbmc_cell_types = [
+            "B cells",
+            "CD14+ Monocytes",
+            "CD16+ Monocytes",
+            "CD4+ T cells",
+            "CD8+ T cells",
+            "Dendritic cells",
+            "FCGR3A+ Monocytes",  # Alternative name for CD16+ Monocytes
+            "NK cells",
+            "Platelets",
+        ]
+
+        # Randomly shuffle the list to ensure we start with a truly random order
+        # Set seed for reproducibility while still being random
+        random.seed(42)
+        random.shuffle(pbmc_cell_types)
+
+        # Assign these randomly to make the initial order meaningless
+        n_cats = len(pbmc_cell_types)
+        category_assignments = [pbmc_cell_types[i % n_cats] for i in range(len(adata))]
+        adata.obs["pbmc_cell_types"] = pd.Categorical(category_assignments)
+
+        # Get initial order (should be the shuffled order)
+        initial_order = list(adata.obs["pbmc_cell_types"].cat.categories)
+
+        # Reorder using LLM
+        beautifier = ObsBeautifier(adata=adata)
+        beautifier.reorder_categories(keys=["pbmc_cell_types"])
+
+        # Get final order
+        final_order = list(adata.obs["pbmc_cell_types"].cat.categories)
+
+        # Verify biologically meaningful patterns in the ordering:
+
+        # 1. T cells should be grouped together
+        t_cell_indices = []
+        for i, cell_type in enumerate(final_order):
+            if "T cell" in cell_type:
+                t_cell_indices.append(i)
+
+        if len(t_cell_indices) > 1:
+            # T cells should be adjacent or close to each other
+            t_cell_span = max(t_cell_indices) - min(t_cell_indices)
+            assert t_cell_span <= len(t_cell_indices), "T cells should be grouped together"
+
+        # 2. Monocytes should be grouped together
+        monocyte_indices = []
+        for i, cell_type in enumerate(final_order):
+            if "Monocyte" in cell_type or "monocyte" in cell_type.lower():
+                monocyte_indices.append(i)
+
+        if len(monocyte_indices) > 1:
+            # Monocytes should be adjacent or close to each other
+            monocyte_span = max(monocyte_indices) - min(monocyte_indices)
+            assert monocyte_span <= len(monocyte_indices) + 1, "Monocytes should be grouped together"
+
+        # 3. Verify all original categories are preserved
+        assert set(final_order) == set(initial_order), "All cell types should be preserved"
+
+        # 4. Verify no duplicates
+        assert len(final_order) == len(set(final_order)), "No duplicate cell types should exist"
+
+        # 5. Verify that the reordering is actually different from random
+        # The LLM should produce a more meaningful order than the initial shuffled order
+        # We can't predict the exact order, but it should be different from pure chance
+        assert final_order != initial_order or len(final_order) <= 2, (
+            "LLM should produce a different (more meaningful) order than the random initial order, "
+            "unless there are very few categories"
+        )
