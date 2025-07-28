@@ -72,29 +72,17 @@ class ObsBeautifier(LLMInterface):
 
         return "\n".join(lines)
 
-    @d.dedent
-    def reorder_and_color(
-        self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name, assign_colors: bool = False
-    ) -> None:
-        """Assign consistent ordering across cell type annotations.
-
-        Note that for multiple samples with many clusters each, this typically requires a more powerful model
-        to work well. This method replaces underscores with spaces.
+    def _preprocess_categories(self, keys: list[str] | str) -> list[str]:
+        """Preprocess categorical observations for consistency.
 
         Parameters
         ----------
         keys
-            List of keys in `adata.obs` to reorder.
-        unknown_key
-            Name of the unknown category.
-        assign_colors
-            Assign colors to the cell types across keys. These are supposed to be consistent across keys and meaningful bioligically,
-            such that similar cell types get similar colors.
+            List of keys in `adata.obs` to preprocess.
 
         Returns
         -------
-        Updates the following attributes:
-        - `self.adata.obs[keys]`
+        List of processed keys.
         """
         if isinstance(keys, str):
             keys = [keys]
@@ -114,63 +102,105 @@ class ObsBeautifier(LLMInterface):
         for key in keys:
             self.adata.obs[key] = self.adata.obs[key].map(lambda x: x.replace("_", " ") if isinstance(x, str) else x)
 
+        return keys
+
+    def reorder_categories(self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name) -> None:
+        """Reorder categorical annotations using biologically meaningful ordering.
+
+        Uses an LLM to determine biologically meaningful ordering of cell type categories
+        while preserving existing colors. This method replaces underscores with spaces.
+
+        Parameters
+        ----------
+        keys
+            List of keys in `adata.obs` to reorder.
+        unknown_key
+            Name of the unknown category.
+
+        Returns
+        -------
+        Updates the following attributes:
+        - `self.adata.obs[keys]` category order
+        """
+        keys = self._preprocess_categories(keys)
+
         # Take the union of all cell types across keys and re-order the list
         cell_type_list = self._get_cluster_ordering(keys, unknown_key=unknown_key)
 
-        # assign meaningful colors to the reordered list of cell types
-        if assign_colors:
-            global_names_and_colors = self._get_cluster_colors(clusters=cell_type_list, unknown_key=unknown_key)
-            label_sets = _get_consistent_ordering(self.adata, global_names_and_colors, keys)
-        else:
-            # If not assigning new colors, preserve existing colors for each key separately.
-            label_sets = {}
-            for key in keys:
-                color_key = f"{key}_colors"
-                key_colors = {}
-                if color_key in self.adata.uns:
-                    old_categories = self.adata.obs[key].cat.categories
-                    old_colors = self.adata.uns[color_key]
-                    key_colors = dict(zip(old_categories, old_colors, strict=True))
+        # Preserve existing colors for each key separately
+        for key in keys:
+            color_key = f"{key}_colors"
+            key_colors = {}
+            if color_key in self.adata.uns:
+                old_categories = self.adata.obs[key].cat.categories
+                old_colors = self.adata.uns[color_key]
+                key_colors = dict(zip(old_categories, old_colors, strict=True))
 
-                # Get a consistent ordering for the current key, preserving its specific colors
-                ordered_labels = _get_consistent_ordering(self.adata, key_colors, [key])
-                label_sets.update(ordered_labels)
-
-        # Re-add the unknown category, make sure that we retained all categories, and write to adata
-        for obs_key, name_and_color in label_sets.items():
-            # When preserving colors, name_and_color might be incomplete if a category
-            # had no pre-existing color. We fill these in from the global ordering.
-            if not assign_colors:
-                for cat in self.adata.obs[obs_key].cat.categories:
-                    if cat not in name_and_color:
-                        name_and_color[cat] = ""  # Assign no color
-
-            if unknown_key in self.adata.obs[obs_key].cat.categories:
-                logger.debug(
-                    "Readding the unknown category with key '%s'",
-                    unknown_key,
-                )
-                name_and_color[unknown_key] = PackageConstants.unknown_color
-
-            _validate_list_mapping(
-                list(self.adata.obs[obs_key].cat.categories), list(name_and_color.keys()), context=obs_key
-            )
-
-            logger.info("Writing categories for key '%s'", obs_key)
             # Use the globally ordered cell_type_list to set category order
-            ordered_cats = [cat for cat in cell_type_list if cat in name_and_color]
+            ordered_cats = [cat for cat in cell_type_list if cat in self.adata.obs[key].cat.categories]
             # Add any missing categories that were in the original data but not in the global list
-            for cat in self.adata.obs[obs_key].cat.categories:
+            for cat in self.adata.obs[key].cat.categories:
                 if cat not in ordered_cats:
                     ordered_cats.append(cat)
 
-            self.adata.obs[obs_key] = self.adata.obs[obs_key].cat.set_categories(ordered_cats)
-            # Sort the colors according to the new category order
-            new_colors = [name_and_color.get(cat, "") for cat in self.adata.obs[obs_key].cat.categories]
+            logger.info("Reordering categories for key '%s'", key)
+            self.adata.obs[key] = self.adata.obs[key].cat.set_categories(ordered_cats)
 
-            # Only write colors if there are any. This handles both assign_colors=True and preserving old colors.
+            # Preserve existing colors in the new order
+            if key_colors:
+                new_colors = [key_colors.get(cat, "") for cat in self.adata.obs[key].cat.categories]
+                if any(new_colors):
+                    self.adata.uns[f"{key}_colors"] = new_colors
+
+    def assign_colors(self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name) -> None:
+        """Assign consistent colors across cell type annotations.
+
+        Uses an LLM to assign biologically meaningful and visually distinct colors
+        while preserving existing category order. This method replaces underscores with spaces.
+
+        Parameters
+        ----------
+        keys
+            List of keys in `adata.obs` to assign colors to.
+        unknown_key
+            Name of the unknown category.
+
+        Returns
+        -------
+        Updates the following attributes:
+        - `self.adata.uns[f"{key}_colors"]` for each key
+        """
+        keys = self._preprocess_categories(keys)
+
+        # Get unique cell types across all keys for consistent coloring
+        unique_cell_types = _get_unique_cell_types(self.adata, keys, unknown_key)
+        string_cell_types = [str(cell_type) for cell_type in unique_cell_types if pd.notna(cell_type)]
+
+        # Get global color mapping from LLM
+        global_names_and_colors = self._get_cluster_colors(clusters=string_cell_types, unknown_key=unknown_key)
+        label_sets = _get_consistent_ordering(self.adata, global_names_and_colors, keys)
+
+        # Apply colors to each key while preserving category order
+        for key in keys:
+            if key not in label_sets:
+                continue
+
+            name_and_color = label_sets[key]
+
+            # Add unknown category color if present
+            if unknown_key in self.adata.obs[key].cat.categories:
+                logger.debug("Adding unknown category color for key '%s'", unknown_key)
+                name_and_color[unknown_key] = PackageConstants.unknown_color
+
+            # Validate that we have all categories
+            _validate_list_mapping(list(self.adata.obs[key].cat.categories), list(name_and_color.keys()), context=key)
+
+            logger.info("Assigning colors for key '%s'", key)
+            # Sort colors according to current category order
+            new_colors = [name_and_color.get(cat, "") for cat in self.adata.obs[key].cat.categories]
+
             if any(new_colors):
-                self.adata.uns[f"{obs_key}_colors"] = new_colors
+                self.adata.uns[f"{key}_colors"] = new_colors
 
     def _get_cluster_ordering(self, keys: list[str], unknown_key: str = PackageConstants.unknown_name) -> list[str]:
         """Query LLM for relational cluster ordering.
@@ -200,7 +230,19 @@ class ObsBeautifier(LLMInterface):
             response_format=CellTypeListOutput,
         )
 
-        return cast(CellTypeListOutput, response).cell_type_list
+        cell_type_list = cast(CellTypeListOutput, response).cell_type_list
+
+        # Remove duplicates while preserving order
+        seen = set()
+        deduplicated_list = []
+        for item in cell_type_list:
+            if item not in seen:
+                seen.add(item)
+                deduplicated_list.append(item)
+
+        logger.debug("Removed %d duplicate(s) from LLM response", len(cell_type_list) - len(deduplicated_list))
+
+        return deduplicated_list
 
     def _get_cluster_colors(
         self, clusters: str | list[str], unknown_key: str = PackageConstants.unknown_name
