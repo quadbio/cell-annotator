@@ -158,6 +158,7 @@ class ObsBeautifier(LLMInterface):
         keys: list[str] | str,
         unknown_key: str = PackageConstants.unknown_name,
         min_color_distance: float = 10.0,
+        retry_similar_colors: bool | None = None,
     ) -> None:
         """Assign consistent colors across cell type annotations.
 
@@ -173,6 +174,9 @@ class ObsBeautifier(LLMInterface):
         min_color_distance
             Minimum Delta E distance for color validation. Colors with lower distance
             will be flagged as potentially too similar. Set to 0 to disable validation.
+        retry_similar_colors
+            Whether to retry with LLM feedback if colors are too similar.
+            If None, auto-enables when colorspacious is available.
 
         Returns
         -------
@@ -202,8 +206,63 @@ class ObsBeautifier(LLMInterface):
                     len(problematic_pairs),
                     min_color_distance,
                 )
+
+                # Create reverse mapping from colors to cell types for better debugging
+                color_to_labels = {}
+                for label, color in global_names_and_colors.items():
+                    if color not in color_to_labels:
+                        color_to_labels[color] = []
+                    color_to_labels[color].append(label)
+
                 for color1, color2, distance in problematic_pairs:
-                    logger.debug("Similar colors: %s vs %s (ΔE = %.1f)", color1, color2, distance)
+                    labels1 = color_to_labels.get(color1, ["unknown"])
+                    labels2 = color_to_labels.get(color2, ["unknown"])
+                    logger.debug(
+                        "Similar colors: %s (%s) vs %s (%s) (ΔE = %.1f)",
+                        color1,
+                        "/".join(labels1),
+                        color2,
+                        "/".join(labels2),
+                        distance,
+                    )
+
+                # Auto-enable retry if colorspacious is available
+                if retry_similar_colors is None:
+                    try:
+                        check_deps("colorspacious")
+                        retry_similar_colors = True
+                    except (ImportError, RuntimeError):
+                        retry_similar_colors = False
+
+                # Attempt to fix similar colors with LLM feedback
+                if retry_similar_colors:
+                    logger.info("Attempting to fix similar colors with targeted LLM feedback...")
+                    try:
+                        updated_colors = self._get_cluster_colors_with_feedback(
+                            global_names_and_colors, problematic_pairs, unknown_key=unknown_key
+                        )
+
+                        # Validate the updated colors
+                        updated_colors_only = list(updated_colors.values())
+                        is_valid_retry, problematic_pairs_retry = self._validate_color_distinguishability(
+                            updated_colors_only, min_delta_e=min_color_distance
+                        )
+
+                        if is_valid_retry:
+                            logger.info("✅ Successfully resolved all color similarity issues")
+                            global_names_and_colors = updated_colors
+                        else:
+                            logger.warning(
+                                "⚠️ LLM retry reduced similar pairs from %d to %d, but %d pairs still too similar",
+                                len(problematic_pairs),
+                                len(problematic_pairs_retry),
+                                len(problematic_pairs_retry),
+                            )
+                            # Use the updated colors anyway as they're likely better
+                            global_names_and_colors = updated_colors
+
+                    except (ImportError, RuntimeError, ValueError) as e:
+                        logger.warning("Failed to retry color assignment: %s", str(e))
 
         label_sets = _get_consistent_ordering(self.adata, global_names_and_colors, keys)
 
@@ -386,3 +445,92 @@ class ObsBeautifier(LLMInterface):
                     logger.warning("Failed to calculate color distance for %s vs %s: %s", color1, color2, str(e))
 
         return len(problematic_pairs) == 0, problematic_pairs
+
+    def _get_cluster_colors_with_feedback(
+        self,
+        current_colors: dict[str, str],
+        problematic_pairs: list[tuple[str, str, float]],
+        unknown_key: str = PackageConstants.unknown_name,
+    ) -> dict[str, str]:
+        """Re-query LLM with feedback about problematic color pairs.
+
+        Parameters
+        ----------
+        current_colors
+            Current mapping of cell types to colors
+        problematic_pairs
+            List of (color1, color2, distance) tuples that are too similar
+        unknown_key
+            Name of the unknown category
+
+        Returns
+        -------
+        Updated mapping of cell types to colors with problematic colors replaced
+        """
+        # Create reverse mapping from colors to cell types
+        color_to_celltypes = {}
+        for cell_type, color in current_colors.items():
+            if color not in color_to_celltypes:
+                color_to_celltypes[color] = []
+            color_to_celltypes[color].append(cell_type)
+
+        # Identify cell types that need new colors (keep only one from each pair)
+        cell_types_to_update = set()
+        for color1, color2, _ in problematic_pairs:
+            # Choose which color to update (prefer updating the second one encountered)
+            if color2 in color_to_celltypes:
+                cell_types_to_update.update(color_to_celltypes[color2])
+            elif color1 in color_to_celltypes:
+                cell_types_to_update.update(color_to_celltypes[color1])
+
+        if not cell_types_to_update:
+            logger.warning("No cell types found for problematic colors, returning original colors")
+            return current_colors
+
+        # Create feedback prompt showing ALL current colors but requesting updates for specific ones
+        # Build the current assignments section
+        assignments = []
+        for cell_type, color in current_colors.items():
+            if cell_type != unknown_key:  # Skip unknown category
+                status = " (NEEDS NEW COLOR)" if cell_type in cell_types_to_update else ""
+                assignments.append(f"- {cell_type}: {color}{status}")
+
+        assignments_str = "\n".join(assignments)
+
+        # Build the problems section
+        problems = []
+        for color1, color2, distance in problematic_pairs:
+            problems.append(f"- Colors {color1} and {color2} are too similar (ΔE={distance:.1f})")
+
+        problems_str = "\n".join(problems)
+
+        # Build the update request
+        cell_types_list = ", ".join(sorted(cell_types_to_update))
+
+        prompts = Prompts(species="human", tissue="cell", stage="adult")
+        feedback_prompt = prompts.get_color_feedback_prompt(
+            current_assignments=assignments_str,
+            problems=problems_str,
+            cell_types_to_update=cell_types_list,
+        )
+
+        logger.debug("Feedback prompt: %s", feedback_prompt)
+        response = self.query_llm(
+            instruction=feedback_prompt,
+            response_format=CellTypeColorOutput,
+        )
+        response = cast(CellTypeColorOutput, response)
+
+        # Start with current colors and update only the requested ones
+        updated_colors = current_colors.copy()
+        for item in response.cell_type_to_color_mapping:
+            if item.original_cell_type_label in cell_types_to_update:
+                updated_colors[item.original_cell_type_label] = item.assigned_color
+                logger.debug(
+                    "Updated color for '%s': %s -> %s",
+                    item.original_cell_type_label,
+                    current_colors.get(item.original_cell_type_label, "unknown"),
+                    item.assigned_color,
+                )
+
+        return updated_colors
