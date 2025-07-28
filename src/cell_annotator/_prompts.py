@@ -175,6 +175,7 @@ class Prompts:
         3. Do not use white, black, or grey colors.
         4. Do not modify the order of the cell type labels.
         5. Include all labels in the color assignment, and do not modify them in any way.
+        6. Each cell type must receive a unique color - do not assign identical colors to different cell types.
 
         ### Example:
         If the cell type annotations are:
@@ -210,9 +211,10 @@ class Prompts:
         Follow these rules:
         1. Keep colors biologically meaningful and appropriate for the cell types.
         2. Ensure NEW colors are visually distinct from ALL existing colors (minimum ΔE={min_color_distance:.1f}).
-        3. Do NOT change colors for other cell types - they are working fine.
-        4. Use hexadecimal color codes (e.g., "#1f77b4").
-        5. Do not use white, black, or grey colors.
+        3. Do NOT assign identical colors to different cell types - each cell type must have a unique color.
+        4. Do NOT change colors for other cell types - they are working fine.
+        5. Use hexadecimal color codes (e.g., "#1f77b4").
+        6. Do not use white, black, or grey colors.
 
         ### Output format:
         For each cell type that needs updating, provide output in the following format:

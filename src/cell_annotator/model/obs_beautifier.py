@@ -200,11 +200,26 @@ class ObsBeautifier(LLMInterface):
             )
 
             if not is_valid:
+                # Separate exact duplicates from similar colors
+                exact_duplicates = [pair for pair in problematic_pairs if pair[2] == 0.0]
+                similar_colors = [pair for pair in problematic_pairs if pair[2] > 0.0]
+
+                if exact_duplicates:
+                    logger.warning(
+                        "Found %d exact color duplicates (ΔE = 0.0). This suggests the LLM assigned identical colors to different cell types.",
+                        len(exact_duplicates),
+                    )
+                if similar_colors:
+                    logger.warning(
+                        "Found %d color pairs that are too similar (ΔE < %.1f but > 0.0).",
+                        len(similar_colors),
+                        min_color_distance,
+                    )
+
+                total_problems = len(problematic_pairs)
                 logger.warning(
-                    "Found %d color pairs that may be too similar (ΔE < %.1f). "
-                    "Consider requesting new colors from LLM or adjusting min_color_distance.",
-                    len(problematic_pairs),
-                    min_color_distance,
+                    "Total: %d color pairs need attention. Consider requesting new colors from LLM or adjusting min_color_distance.",
+                    total_problems,
                 )
 
                 # Create reverse mapping from colors to cell types for better debugging
@@ -217,8 +232,10 @@ class ObsBeautifier(LLMInterface):
                 for color1, color2, distance in problematic_pairs:
                     labels1 = color_to_labels.get(color1, ["unknown"])
                     labels2 = color_to_labels.get(color2, ["unknown"])
+                    problem_type = "DUPLICATE" if distance == 0.0 else "SIMILAR"
                     logger.debug(
-                        "Similar colors: %s (%s) vs %s (%s) (ΔE = %.1f)",
+                        "%s colors: %s (%s) vs %s (%s) (ΔE = %.1f)",
+                        problem_type,
                         color1,
                         "/".join(labels1),
                         color2,
