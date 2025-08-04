@@ -91,3 +91,23 @@ class TestBaseAnnotator:
             except (ValueError, RuntimeError):
                 # Provider not available, which is fine
                 pass
+
+    def test_repr(self, base_annotator):
+        """Test __repr__ method produces expected format."""
+        repr_str = repr(base_annotator)
+
+        # Should contain class name
+        assert "BaseAnnotator" in repr_str
+
+        # Should contain biological context
+        assert "human" in repr_str
+        assert "brain" in repr_str
+        assert "adult" in repr_str
+        assert "leiden" in repr_str
+
+        # Should contain model configuration
+        assert base_annotator._provider_name in repr_str
+        assert base_annotator.model in repr_str
+
+        # Should contain status
+        assert "Status:" in repr_str
