@@ -248,7 +248,8 @@ class ObsBeautifier(LLMInterface):
                     try:
                         check_deps("colorspacious")
                         retry_similar_colors = True
-                    except (ImportError, RuntimeError):
+                    except (ImportError, RuntimeError) as e:
+                        logger.debug("colorspacious check failed: %s", str(e))
                         retry_similar_colors = False
 
                 # Attempt to fix similar colors with LLM feedback
@@ -435,8 +436,8 @@ class ObsBeautifier(LLMInterface):
         try:
             check_deps("colorspacious")
             from colorspacious import cspace_convert, deltaE
-        except (ImportError, RuntimeError):
-            logger.warning("colorspacious not available, skipping color validation")
+        except (ImportError, RuntimeError) as e:
+            logger.warning("Skipping color validation: %s", str(e))
             return True, []
 
         problematic_pairs = []
