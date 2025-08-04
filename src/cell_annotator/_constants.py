@@ -30,7 +30,7 @@ class PackageConstants:
         -------
         Dictionary mapping provider names to lists of available models.
         """
-        from cell_annotator._providers import get_provider
+        from cell_annotator.model._providers import get_provider
 
         all_models = {}
         for provider_name in cls.supported_providers:

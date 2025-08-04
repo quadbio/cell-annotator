@@ -400,3 +400,87 @@ class TestObsBeautifier:
         except (RuntimeError, ConnectionError, ValueError):
             # Expected to fail due to missing LLM setup, but parameter should be accepted
             pass
+
+    def test_repr(self, cell_annotator_single):
+        """Test __repr__ method produces expected format."""
+        cell_annotator = cell_annotator_single
+        beautifier = ObsBeautifier(adata=cell_annotator.adata)
+        repr_str = repr(beautifier)
+
+        # Should contain class name
+        assert "ObsBeautifier" in repr_str
+
+        # Should contain model configuration
+        assert beautifier._provider_name in repr_str
+        assert beautifier.model in repr_str
+
+        # Should contain status
+        assert "Status:" in repr_str
+
+    @pytest.mark.parametrize(
+        ("colors", "min_delta_e", "expected_valid"),
+        [
+            (["#FF0000", "#00FF00", "#0000FF"], 4.0, True),  # Distinct colors
+            (["#FF0000", "#FF1111"], 4.0, False),  # Similar reds
+            (["#FFFFFF", "#000000"], 4.0, True),  # Black and white
+            (["#FF0000"], 4.0, True),  # Single color
+            ([], 4.0, True),  # Empty list
+        ],
+    )
+    def test_validate_color_distinguishability_parametrized(
+        self, cell_annotator_single, colors, min_delta_e, expected_valid
+    ):
+        """Test color validation with various color combinations."""
+        cell_annotator = cell_annotator_single
+        beautifier = ObsBeautifier(adata=cell_annotator.adata)
+
+        is_valid, problematic_pairs = beautifier._validate_color_distinguishability(colors, min_delta_e)
+
+        assert is_valid == expected_valid
+        if expected_valid:
+            assert len(problematic_pairs) == 0
+        else:
+            assert len(problematic_pairs) > 0
+
+    def test_get_cluster_colors_with_feedback_edge_cases(self, cell_annotator_single):
+        """Test _get_cluster_colors_with_feedback with edge cases."""
+        cell_annotator = cell_annotator_single
+        beautifier = ObsBeautifier(adata=cell_annotator.adata)
+
+        # Test case: no problematic pairs (should return original colors)
+        original_colors = {"A": "#FF0000", "B": "#00FF00"}
+        problematic_pairs = []
+
+        result = beautifier._get_cluster_colors_with_feedback(original_colors, problematic_pairs)
+        assert result == original_colors
+
+        # Test case: empty current_colors
+        empty_colors = {}
+        result = beautifier._get_cluster_colors_with_feedback(empty_colors, problematic_pairs)
+        assert result == empty_colors
+
+    @flaky
+    @pytest.mark.real_llm_query()
+    def test_assign_colors_real_llm(self, cell_annotator_single):
+        """Test assign_colors with real LLM call."""
+        cell_annotator = cell_annotator_single
+        adata = cell_annotator.adata
+
+        # Set up meaningful cell type names
+        adata.obs["leiden"] = adata.obs["leiden"].map({"0": "T_cells", "1": "B_cells"}).astype("category")
+
+        beautifier = ObsBeautifier(adata=adata, max_completion_tokens=300)
+
+        # Should not raise an exception
+        beautifier.assign_colors(keys=["leiden"])
+
+        # Check that colors were assigned
+        assert "leiden_colors" in adata.uns
+        assert len(adata.uns["leiden_colors"]) == 2
+
+        # Check that colors are valid hex codes
+        for color in adata.uns["leiden_colors"]:
+            assert color.startswith("#")
+            assert len(color) == 7
+            # Should be valid hex
+            int(color[1:], 16)
