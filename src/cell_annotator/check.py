@@ -67,6 +67,8 @@ INSTALL_HINTS = types.SimpleNamespace(
     "or follow the guide from https://docs.rapids.ai/install/",
     cupy="To speed up GPU computations, install cuPy following the guide from https://docs.rapids.ai/install/",
     cuml="To speed up GPU machine learning, install cuML following the guide from https://docs.rapids.ai/install/",
+    bionty="To use reference databases for cell type annotation, install with: pip install 'cell-annotator[references]' "
+    "or pip install bionty",
 )
 
 CHECKERS = {
@@ -81,6 +83,7 @@ CHECKERS = {
     ),
     "cupy": Checker("cupy", vmin=None, install_hint=INSTALL_HINTS.cupy),
     "cuml": Checker("cuml", vmin=None, install_hint=INSTALL_HINTS.cuml),
+    "bionty": Checker("bionty", vmin=None, install_hint=INSTALL_HINTS.bionty),
 }
 
 

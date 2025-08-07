@@ -71,7 +71,7 @@ optional-dependencies.doc = [
 ]
 
 optional-dependencies.gemini = [
-  "google-genai>=1.27",
+  "google-genai>=1.29",
 ]
 optional-dependencies.gpu = [
   "rapids-singlecell>=0.12",
@@ -81,9 +81,16 @@ optional-dependencies.gpu = [
 optional-dependencies.openai = [
   "openai>=1.90",
 ]
+
+# Reference database dependencies
+optional-dependencies.references = [
+  "bionty>=0.58",
+]
+
 optional-dependencies.test = [
   "cell-annotator[all-providers]", # tests use all providers
   "cell-annotator[colors]",        # tests use color validation
+  "cell-annotator[references]",    # tests query reference databases for cell types and markers
   "coverage",
   "flaky",
   "pytest",

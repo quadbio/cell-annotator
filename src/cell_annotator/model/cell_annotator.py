@@ -7,8 +7,9 @@ from tqdm.auto import tqdm
 from cell_annotator._constants import PackageConstants
 from cell_annotator._docs import d
 from cell_annotator._logging import logger
-from cell_annotator._response_formats import CellTypeListOutput, ExpectedMarkerGeneOutput
+from cell_annotator._response_formats import CellTypeListOutput
 from cell_annotator.model.base_annotator import BaseAnnotator
+from cell_annotator.model.reference_providers import create_orchestrator
 from cell_annotator.model.sample_annotator import SampleAnnotator
 from cell_annotator.utils import _filter_marker_genes_to_adata, _format_annotation, _try_sorting_dict_by_keys
 
@@ -48,11 +49,13 @@ class CellAnnotator(BaseAnnotator):
         max_completion_tokens: int | None = None,
         provider: str | None = None,
         api_key: str | None = None,
+        reference_provider: str = "llm",
     ):
         super().__init__(species, tissue, stage, cluster_key, model, max_completion_tokens, provider, api_key)
         self.adata = adata
         self.sample_key = sample_key
         self._api_key = api_key  # Store API key for passing to SampleAnnotators
+        self.reference_provider = reference_provider
 
         self.sample_annotators: dict[str, SampleAnnotator] = {}
         self.expected_cell_types: list[str] = []
@@ -150,7 +153,7 @@ class CellAnnotator(BaseAnnotator):
         filter_to_var_names: bool = True,
         provide_var_names: bool = True,
     ) -> None:
-        """Get expected cell types and marker genes.
+        """Get expected cell types and marker genes using the configured reference provider.
 
         Parameters
         ----------
@@ -159,6 +162,7 @@ class CellAnnotator(BaseAnnotator):
             Whether to filter marker genes to only include those present in `adata.var_names`
         provide_var_names
             If True, include the available gene names in the prompt and instruct the model to restrict itself to this set.
+            Only used for LLM-based providers.
 
         Returns
         -------
@@ -166,39 +170,26 @@ class CellAnnotator(BaseAnnotator):
         - `self.expected_cell_types`
         - `self.expected_marker_genes`
         """
-        logger.info("Querying cell types.")
-        res_types = self.query_llm(
-            instruction=self.prompts.get_cell_type_prompt(),
-            response_format=CellTypeListOutput,
+        logger.info("Creating reference provider orchestrator: %s", self.reference_provider)
+
+        # Create the reference orchestrator based on the provider string
+        orchestrator = create_orchestrator(self.reference_provider, annotator=self)
+
+        # Get both cell types and markers from the orchestrator
+        logger.info("Querying cell types and markers using %s", self.reference_provider)
+        self.expected_cell_types, raw_marker_genes = orchestrator.get_cell_types_and_markers(
+            tissue=self.tissue, species=self.species, stage=self.stage, n_markers=n_markers
         )
 
-        logger.info("Writing expected cell types to `self.expected_cell_types`")
-        self.expected_cell_types = res_types.cell_type_list
-
-        # Compose a single prompt that includes the cell types directly in the prompt string
-        marker_gene_prompt = self.prompts.get_cell_type_marker_prompt(
-            n_markers,
-            cell_types=self.expected_cell_types,
-            var_names=list(self.adata.var_names) if provide_var_names else None,
-        )
-
-        logger.info("Querying cell type markers.")
-        res_markers = self.query_llm(
-            instruction=marker_gene_prompt,
-            response_format=ExpectedMarkerGeneOutput,
-        )
-
-        logger.info("Writing expected marker genes to `self.expected_marker_genes`.")
-        raw_marker_genes = {
-            cell_type_markers.cell_type_name: cell_type_markers.expected_marker_genes
-            for cell_type_markers in res_markers.expected_markers_per_cell_type
-        }
+        logger.info("Found %d expected cell types: %s", len(self.expected_cell_types), self.expected_cell_types)
 
         # Filter marker genes to available genes if requested
         if filter_to_var_names:
             self.expected_marker_genes = _filter_marker_genes_to_adata(raw_marker_genes, self.adata)
         else:
             self.expected_marker_genes = raw_marker_genes
+
+        logger.info("Finished getting expected cell types and markers using %s", self.reference_provider)
 
     @d.dedent
     def get_cluster_markers(
