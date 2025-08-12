@@ -73,7 +73,7 @@ class ObsBeautifier(LLMInterface):
 
         return "\n".join(lines)
 
-    def _preprocess_categories(self, keys: list[str] | str) -> list[str]:
+    def _preprocess_categories(self, keys: list[str] | str) -> tuple[list[str], dict[str, dict[str, str]]]:
         """Preprocess categorical observations for consistency.
 
         Parameters
@@ -83,27 +83,67 @@ class ObsBeautifier(LLMInterface):
 
         Returns
         -------
-        List of processed keys.
+        keys
+            List of processed keys.
+        color_mappings
+            Dictionary mapping each key to its {category: color} mapping before preprocessing.
+            Empty dict for keys that have no colors or mismatched color arrays.
         """
         if isinstance(keys, str):
             keys = [keys]
 
+        # Process each key: convert to categorical, extract colors, clean up categories
+        color_mappings = {}
         for key in keys:
-            # Convert to categorical if not already
+            # 1. Convert to categorical if not already
             if not isinstance(self.adata.obs[key].dtype, CategoricalDtype):
                 self.adata.obs[key] = self.adata.obs[key].astype("category")
 
-            # Ensure categories are strings for processing
+            # 2. Ensure categories are strings for processing
             if not all(isinstance(c, str) for c in self.adata.obs[key].cat.categories):
                 self.adata.obs[key] = self.adata.obs[key].cat.rename_categories(
                     {cat: str(cat) for cat in self.adata.obs[key].cat.categories}
                 )
 
-        # make the naming consistent: replaces underscores with spaces
-        for key in keys:
+            # 3. Extract existing color mappings before any modifications
+            color_key = f"{key}_colors"
+            color_mappings[key] = {}
+            if color_key in self.adata.uns:
+                current_categories = list(self.adata.obs[key].cat.categories)
+                current_colors = self.adata.uns[color_key]
+                if len(current_colors) == len(current_categories):
+                    color_mappings[key] = dict(zip(current_categories, current_colors, strict=True))
+
+            # 4. Make naming consistent: replace underscores with spaces
             self.adata.obs[key] = self.adata.obs[key].map(lambda x: x.replace("_", " ") if isinstance(x, str) else x)
 
-        return keys
+            # 5. Remove unused categories and update color mappings
+            original_categories = list(self.adata.obs[key].cat.categories)
+            used_categories = list(self.adata.obs[key].unique())
+            unused_categories = [cat for cat in original_categories if cat not in used_categories]
+
+            if unused_categories:
+                logger.warning(
+                    "Found %d unused categories in '%s': %s. Removing them from categorical data.",
+                    len(unused_categories),
+                    key,
+                    ", ".join(sorted(unused_categories)),
+                )
+
+                # Remove unused categories
+                self.adata.obs[key] = self.adata.obs[key].cat.remove_unused_categories()
+
+                # Filter color mapping to only include remaining categories
+                if color_mappings[key]:
+                    new_categories = self.adata.obs[key].cat.categories
+                    color_mappings[key] = {
+                        cat: color for cat, color in color_mappings[key].items() if cat in new_categories
+                    }
+                    # Update the colors in adata.uns to match
+                    new_colors = [color_mappings[key][cat] for cat in new_categories]
+                    self.adata.uns[color_key] = new_colors
+
+        return keys, color_mappings
 
     def reorder_categories(self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name) -> None:
         """Reorder categorical annotations using biologically meaningful ordering.
@@ -123,20 +163,13 @@ class ObsBeautifier(LLMInterface):
         Updates the following attributes:
         - `self.adata.obs[keys]` category order
         """
-        keys = self._preprocess_categories(keys)
+        keys, color_mappings = self._preprocess_categories(keys)
 
         # Take the union of all cell types across keys and re-order the list
         cell_type_list = self._get_cluster_ordering(keys, unknown_key=unknown_key)
 
         # Preserve existing colors for each key separately
         for key in keys:
-            color_key = f"{key}_colors"
-            key_colors = {}
-            if color_key in self.adata.uns:
-                old_categories = self.adata.obs[key].cat.categories
-                old_colors = self.adata.uns[color_key]
-                key_colors = dict(zip(old_categories, old_colors, strict=True))
-
             # Use the globally ordered cell_type_list to set category order
             ordered_cats = [cat for cat in cell_type_list if cat in self.adata.obs[key].cat.categories]
             # Add any missing categories that were in the original data but not in the global list
@@ -147,9 +180,9 @@ class ObsBeautifier(LLMInterface):
             logger.info("Reordering categories for key '%s'", key)
             self.adata.obs[key] = self.adata.obs[key].cat.set_categories(ordered_cats)
 
-            # Preserve existing colors in the new order
-            if key_colors:
-                new_colors = [key_colors.get(cat, "") for cat in self.adata.obs[key].cat.categories]
+            # Preserve existing colors in the new order using the centralized color mapping
+            if color_mappings[key]:
+                new_colors = [color_mappings[key].get(cat, "") for cat in self.adata.obs[key].cat.categories]
                 if any(new_colors):
                     self.adata.uns[f"{key}_colors"] = new_colors
 
@@ -183,7 +216,7 @@ class ObsBeautifier(LLMInterface):
         Updates the following attributes:
         - `self.adata.uns[f"{key}_colors"]` for each key
         """
-        keys = self._preprocess_categories(keys)
+        keys, _ = self._preprocess_categories(keys)  # Don't need color mappings for assign_colors
 
         # Get unique cell types across all keys for consistent coloring
         unique_cell_types = _get_unique_cell_types(self.adata, keys, unknown_key)
