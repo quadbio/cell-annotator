@@ -94,9 +94,9 @@ class TestObsBeautifier:
         n_half = len(adata) // 2
         adata.obs["integer_cats"] = ([0] * (n_half + (len(adata) % 2))) + ([1] * n_half)
         adata.obs["object_cats"] = (["A"] * (n_half + (len(adata) % 2))) + (["B"] * n_half)
-        adata.obs["int_categorical_cats"] = pd.Series(([0] * (n_half + (len(adata) % 2))) + ([1] * n_half)).astype(
-            "category"
-        )
+        # Fix index alignment issue by using values directly
+        int_cat_values = ([0] * (n_half + (len(adata) % 2))) + ([1] * n_half)
+        adata.obs["int_categorical_cats"] = pd.Categorical(int_cat_values)
 
         keys = ["integer_cats", "object_cats", "int_categorical_cats"]
 
@@ -117,8 +117,11 @@ class TestObsBeautifier:
 
         # --- Setup ---
         # Create two categorical columns with overlapping categories but different colors
-        adata.obs["cat_1"] = pd.Series(["A", "B"] * (len(adata) // 2 + 1))[: len(adata)].astype("category")
-        adata.obs["cat_2"] = pd.Series(["A", "C"] * (len(adata) // 2 + 1))[: len(adata)].astype("category")
+        # Fix index alignment issue by using .values to avoid pandas index mismatch
+        cat_1_values = (["A", "B"] * (len(adata) // 2 + 1))[: len(adata)]
+        cat_2_values = (["A", "C"] * (len(adata) // 2 + 1))[: len(adata)]
+        adata.obs["cat_1"] = pd.Categorical(cat_1_values)
+        adata.obs["cat_2"] = pd.Categorical(cat_2_values)
 
         # Define distinct color maps
         original_colors_1 = {"A": "#ff0000", "B": "#00ff00"}  # A is red
