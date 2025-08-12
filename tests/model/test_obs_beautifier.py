@@ -484,3 +484,125 @@ class TestObsBeautifier:
             assert len(color) == 7
             # Should be valid hex
             int(color[1:], 16)
+
+    def test_assign_colors_with_unused_categories(self, cell_annotator_single):
+        """Test assign_colors when categories exist but are not used in the data.
+
+        This tests the fix for the bug where:
+        - Some categories are defined but not present in the actual data
+        - assign_colors should remove unused categories and warn the user
+        """
+        cell_annotator = cell_annotator_single
+        adata = cell_annotator.adata
+
+        # Create the problematic case: categories != unique values
+        # This mimics the user's real-world scenario
+
+        # level_1: all categories are used (control case)
+        level_1_categories = ["PSC", "Neuroepithelium", "NPC"]
+        level_1_assignments = ["PSC"] * 30 + ["Neuroepithelium"] * 30 + ["NPC"] * (len(adata) - 60)
+        adata.obs["annot_level_1"] = pd.Categorical(level_1_assignments, categories=level_1_categories)
+
+        # level_2: some categories are NOT used (this triggers the unused category handling)
+        level_2_categories = ["PSC", "Neuroepithelium", "NPC", "Telencephalic NPC", "Unused Category"]
+        # Only use the first 4 categories, leaving 'Unused Category' as an unused category
+        level_2_used = ["PSC", "Neuroepithelium", "NPC", "Telencephalic NPC"]
+        np.random.seed(42)
+        level_2_assignments = np.random.choice(level_2_used, size=len(adata))
+        adata.obs["annot_level_2"] = pd.Categorical(level_2_assignments, categories=level_2_categories)
+
+        # Verify our test setup reproduces the issue
+        assert set(adata.obs["annot_level_1"].cat.categories) == set(adata.obs["annot_level_1"].unique())
+        assert set(adata.obs["annot_level_2"].cat.categories) != set(adata.obs["annot_level_2"].unique())
+        assert "Unused Category" in adata.obs["annot_level_2"].cat.categories
+        assert "Unused Category" not in adata.obs["annot_level_2"].unique()
+
+        beautifier = ObsBeautifier(adata=adata)
+
+        # This should work by removing unused categories and warning the user
+        beautifier.assign_colors(keys=["annot_level_1", "annot_level_2"])
+
+        # Verify that colors were assigned correctly
+        assert "annot_level_1_colors" in adata.uns
+        assert "annot_level_2_colors" in adata.uns
+
+        # Verify that unused categories were removed
+        assert "Unused Category" not in adata.obs["annot_level_2"].cat.categories
+        assert set(adata.obs["annot_level_2"].cat.categories) == set(adata.obs["annot_level_2"].unique())
+
+        # Verify color array lengths match the cleaned categories
+        level_1_colors = adata.uns["annot_level_1_colors"]
+        level_2_colors = adata.uns["annot_level_2_colors"]
+
+        assert len(level_1_colors) == len(adata.obs["annot_level_1"].cat.categories)
+        assert len(level_2_colors) == len(adata.obs["annot_level_2"].cat.categories)
+
+        # level_2 should now have 4 categories (unused one removed)
+        assert len(adata.obs["annot_level_2"].cat.categories) == 4
+        assert len(level_2_colors) == 4
+
+    def test_assign_colors_edge_cases_unused_categories(self, cell_annotator_single):
+        """Test edge cases for unused categories in assign_colors."""
+        cell_annotator = cell_annotator_single
+        adata = cell_annotator.adata
+
+        # Case 1: All categories unused except one
+        adata.obs["mostly_unused"] = pd.Categorical(
+            ["A"] * len(adata),  # Only 'A' is used
+            categories=["A", "B", "C", "D", "E"],  # B, C, D, E are unused
+        )
+
+        # Case 2: Mixed scenario - some keys have unused categories, others don't
+        adata.obs["all_used"] = pd.Categorical(
+            ["X", "Y"] * (len(adata) // 2) + ["X"] * (len(adata) % 2),
+            categories=["X", "Y"],  # All categories used
+        )
+
+        beautifier = ObsBeautifier(adata=adata)
+
+        # This should handle the mixed scenario gracefully by removing unused categories
+        beautifier.assign_colors(keys=["mostly_unused", "all_used"])
+
+        # Verify basic success criteria
+        assert "mostly_unused_colors" in adata.uns
+        assert "all_used_colors" in adata.uns
+
+        # Verify unused categories were removed from 'mostly_unused'
+        assert len(adata.obs["mostly_unused"].cat.categories) == 1  # Only 'A' should remain
+        assert list(adata.obs["mostly_unused"].cat.categories) == ["A"]
+        assert len(adata.uns["mostly_unused_colors"]) == 1
+
+        # Verify 'all_used' is unchanged (no unused categories to remove)
+        assert len(adata.obs["all_used"].cat.categories) == 2
+        assert set(adata.obs["all_used"].cat.categories) == {"X", "Y"}
+        assert len(adata.uns["all_used_colors"]) == 2
+
+    def test_unused_categories_removal_with_reorder(self, cell_annotator_single):
+        """Test that unused categories are also removed when using reorder_categories."""
+        cell_annotator = cell_annotator_single
+        adata = cell_annotator.adata
+
+        # Create data with unused categories
+        adata.obs["test_reorder"] = pd.Categorical(
+            ["Used_A", "Used_B"] * (len(adata) // 2) + ["Used_A"] * (len(adata) % 2),
+            categories=["Used_A", "Used_B", "Unused_C", "Unused_D"],
+        )
+
+        # Verify setup
+        assert len(adata.obs["test_reorder"].cat.categories) == 4
+        assert "Unused_C" in adata.obs["test_reorder"].cat.categories
+        assert "Unused_D" in adata.obs["test_reorder"].cat.categories
+
+        beautifier = ObsBeautifier(adata=adata)
+
+        # reorder_categories should also remove unused categories
+        beautifier.reorder_categories(keys=["test_reorder"])
+
+        # Verify unused categories were removed
+        assert len(adata.obs["test_reorder"].cat.categories) == 2
+        assert "Unused_C" not in adata.obs["test_reorder"].cat.categories
+        assert "Unused_D" not in adata.obs["test_reorder"].cat.categories
+        assert set(adata.obs["test_reorder"].cat.categories) == {
+            "Used A",
+            "Used B",
+        }  # Note: underscores replaced with spaces

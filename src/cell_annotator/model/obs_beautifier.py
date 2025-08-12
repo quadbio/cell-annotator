@@ -103,6 +103,21 @@ class ObsBeautifier(LLMInterface):
         for key in keys:
             self.adata.obs[key] = self.adata.obs[key].map(lambda x: x.replace("_", " ") if isinstance(x, str) else x)
 
+        # Remove unused categories and warn user
+        for key in keys:
+            original_categories = list(self.adata.obs[key].cat.categories)
+            used_categories = list(self.adata.obs[key].unique())
+            unused_categories = [cat for cat in original_categories if cat not in used_categories]
+
+            if unused_categories:
+                logger.warning(
+                    "Found %d unused categories in '%s': %s. Removing them from categorical data.",
+                    len(unused_categories),
+                    key,
+                    ", ".join(sorted(unused_categories)),
+                )
+                self.adata.obs[key] = self.adata.obs[key].cat.remove_unused_categories()
+
         return keys
 
     def reorder_categories(self, keys: list[str] | str, unknown_key: str = PackageConstants.unknown_name) -> None:
