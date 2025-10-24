@@ -111,6 +111,7 @@ cell_ann = CellAnnotator(
 - API keys via environment variables or `.env` file (loaded with python-dotenv)
 - Models: `gpt-4o-mini`, `gemini-2.5-flash-lite`, `claude-haiku-4-5` (defaults)
 - Anthropic is most expensive ($1/$5 per 1M tokens), minimize usage in tests
+- All providers use model aliases that auto-update to latest snapshots
 
 ### Structured Outputs with Pydantic
 - `CellTypeListOutput`: List of expected cell types
