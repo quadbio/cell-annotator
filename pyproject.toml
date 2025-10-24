@@ -60,7 +60,7 @@ optional-dependencies.doc = [
   "pandas",
   # Until pybtex >0.24.0 releases: https://bitbucket.org/pybtex-devs/pybtex/issues/169/
   "setuptools",
-  "sphinx>=4",
+  "sphinx>=8.1",
   "sphinx-autodoc-typehints",
   "sphinx-book-theme>=1",
   "sphinx-copybutton",
@@ -83,9 +83,10 @@ optional-dependencies.openai = [
 optional-dependencies.test = [
   "cell-annotator[all-providers]", # tests use all providers
   "cell-annotator[colors]",        # tests use color validation
-  "coverage",
+  "coverage>=7.10",
   "flaky",
   "pytest",
+  "pytest-cov",                    # For VS Code's coverage functionality
 ]
 
 optional-dependencies.tutorials = [
@@ -122,7 +123,7 @@ deps = [ "pre" ]
 python = [ "3.13" ]
 
 [tool.hatch.envs.hatch-test]
-features = [ "test" ]
+features = [ "dev", "test" ]
 
 [tool.hatch.envs.hatch-test.overrides]
 # If the matrix variable `deps` is set to "pre",
@@ -183,6 +184,7 @@ addopts = [
 
 [tool.coverage.run]
 source = [ "cell_annotator" ]
+patch = [ "subprocess" ]
 omit = [
   "**/test_*.py",
 ]
