@@ -61,7 +61,11 @@ class LLMInterface(APIKeyMixin):
             provider = self._detect_provider_from_model(model)
         elif provider is not None and model is None:
             # Provider specified, use default model for that provider
-            model = PackageConstants.default_models.get(provider, PackageConstants.default_model)
+            if provider not in PackageConstants.default_models:
+                raise ValueError(
+                    f"Unknown provider '{provider}'. Supported providers: {PackageConstants.supported_providers}"
+                )
+            model = PackageConstants.default_models[provider]
 
         # At this point, both provider and model should be strings
         assert provider is not None, "Provider should not be None at this point"
