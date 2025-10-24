@@ -61,6 +61,13 @@ jobs:
     name: ${{ matrix.env.label }}
     runs-on: ${{ matrix.os }}
 
+    env:
+      OS: ${{ matrix.os }}
+      PYTHON: ${{ matrix.python }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -87,6 +94,8 @@ jobs:
           uvx hatch run ${{ matrix.env.name }}:coverage xml # create report for upload
       - name: Upload coverage
         uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   # Check that all tests defined above pass. This makes it easy to set a single "required" test in branch
   # protection instead of having to update it frequently. See https://github.com/re-actors/alls-green#why.

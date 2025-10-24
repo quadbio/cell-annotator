@@ -292,6 +292,10 @@ please check out [this feature request][issue-render-notebooks] in the `cookiecu
   Only if you do so can sphinx automatically create a link to the external documentation.
 - If building the documentation fails because of a missing link that is outside your control,
   you can add an entry to the `nitpick_ignore` list in `docs/conf.py`
+- If you refer to objects from other packages, please add an entry to `intersphinx_mapping` in `docs/conf.py`.
+  Only if you do so can sphinx automatically create a link to the external documentation.
+- If building the documentation fails because of a missing link that is outside your control,
+  you can add an entry to the `nitpick_ignore` list in `docs/conf.py`
 
 (docs-building)=
 

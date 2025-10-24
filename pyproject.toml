@@ -1,11 +1,10 @@
 [build-system]
 build-backend = "hatchling.build"
-requires = [ "hatchling" ]
+requires = [ "hatch-vcs", "hatchling" ]
 
 [project]
 name = "cell-annotator"
-version = "0.0.1"
-description = "A tool to annotate cell types"
+description = "Automated cell annotation from scRNA-seq data using LLMs"
 readme = "README.md"
 license = { file = "LICENSE" }
 maintainers = [
@@ -14,19 +13,41 @@ maintainers = [
 authors = [
   { name = "Marius Lange" },
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
 ]
+dynamic = [ "version" ]
 dependencies = [
-  "anndata",
+  "docrep",
+  "packaging",
+  "pydantic>=2",
+  "python-dotenv",
+  "rich",
+  "scanpy>=1.11",
   # for debug logging (referenced from the issue template)
   "session-info2",
 ]
+
+# Convenience groups combining providers
+optional-dependencies.all-providers = [
+  "cell-annotator[anthropic]",
+  "cell-annotator[gemini]",
+  "cell-annotator[openai]",
+]
+
+optional-dependencies.anthropic = [
+  "anthropic>=0.59",
+]
+
+# Other optional functionality
+optional-dependencies.colors = [
+  "colorspacious>=1.1",
+]
+# Development dependencies
 optional-dependencies.dev = [
   "pre-commit",
   "twine>=4.0.2",
@@ -47,15 +68,38 @@ optional-dependencies.doc = [
   "sphinxcontrib-bibtex>=1",
   "sphinxext-opengraph",
 ]
-optional-dependencies.test = [
-  "coverage>=7.10",
-  "pytest",
-  "pytest-cov",     # For VS Code’s coverage functionality
+
+optional-dependencies.gemini = [
+  "google-genai>=1.27",
 ]
+optional-dependencies.gpu = [
+  "rapids-singlecell>=0.12",
+]
+
+# Core provider dependencies - one of these is required to use the package
+optional-dependencies.openai = [
+  "openai>=1.90",
+]
+optional-dependencies.test = [
+  "cell-annotator[all-providers]", # tests use all providers
+  "cell-annotator[colors]",        # tests use color validation
+  "coverage>=7.10",
+  "flaky",
+  "pytest",
+  "pytest-cov",                    # For VS Code's coverage functionality
+]
+
+optional-dependencies.tutorials = [
+  "squidpy>=1.6",
+]
+
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://cell-annotator.readthedocs.io/"
-urls.Homepage = "https://github.com/quadbio/cell-annotator"
+urls.Homepage = "https://cell-annotator.readthedocs.io/"
 urls.Source = "https://github.com/quadbio/cell-annotator"
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.envs.default]
 installer = "uv"
@@ -63,6 +107,7 @@ features = [ "dev" ]
 
 [tool.hatch.envs.docs]
 features = [ "doc" ]
+dev-mode = true
 scripts.build = "sphinx-build -M html docs docs/_build -W {args}"
 scripts.open = "python -m webbrowser -t docs/_build/html/index.html"
 scripts.clean = "git clean -fdX -- {args:docs}"
@@ -70,7 +115,7 @@ scripts.clean = "git clean -fdX -- {args:docs}"
 # Test the lowest and highest supported Python versions with normal deps
 [[tool.hatch.envs.hatch-test.matrix]]
 deps = [ "stable" ]
-python = [ "3.10", "3.13" ]
+python = [ "3.11", "3.13" ]
 
 # Test the newest supported Python version also with pre-release deps
 [[tool.hatch.envs.hatch-test.matrix]]
@@ -128,6 +173,9 @@ lint.per-file-ignores."tests/*" = [ "D" ]
 lint.pydocstyle.convention = "numpy"
 
 [tool.pytest.ini_options]
+markers = [
+  "real_llm_query: mark a test that sends data to an actual LLM provider.",
+]
 testpaths = [ "tests" ]
 xfail_strict = true
 addopts = [
