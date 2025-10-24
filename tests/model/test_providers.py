@@ -5,6 +5,7 @@ import os
 import pytest
 from flaky import flaky
 
+from cell_annotator._constants import PackageConstants
 from cell_annotator._response_formats import BaseOutput
 from cell_annotator.model._providers import AnthropicProvider, GeminiProvider, OpenAIProvider
 
@@ -90,7 +91,7 @@ class TestOpenAIProvider:
         response = provider.query(
             agent_description="You are a helpful assistant.",
             instruction="Say hello in exactly one word.",
-            model="gpt-4o-mini",
+            model=PackageConstants.default_models["openai"],
             response_format=SimpleOutput,
             max_completion_tokens=50,
         )
@@ -145,7 +146,7 @@ class TestGeminiProvider:
         response = provider.query(
             agent_description="You are a helpful assistant.",
             instruction="Say hello in exactly one word.",
-            model="gemini-1.5-flash",
+            model=PackageConstants.default_models["gemini"],
             response_format=SimpleOutput,
             max_completion_tokens=50,
         )
@@ -192,7 +193,7 @@ class TestAnthropicProvider:
         response = provider.query(
             agent_description="You are a helpful assistant.",
             instruction="Say hello in exactly one word.",
-            model="claude-3-haiku-20240307",
+            model=PackageConstants.default_models["anthropic"],
             response_format=SimpleOutput,
             max_completion_tokens=50,
         )

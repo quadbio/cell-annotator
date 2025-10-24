@@ -10,11 +10,15 @@ class PackageConstants:
     min_markers: int = 15
     use_raw: bool = False
     default_min_color_distance: float = 4.0  # Delta E threshold for color distinguishability
-    default_model: str = "gpt-4o-mini"  # Legacy default for backward compatibility
+    # Default models optimized for cost-effectiveness in CI runs
+    # Pricing in USD per 1M tokens (input / output):
+    # - openai (gpt-4o-mini): $0.15 / $0.60
+    # - gemini (gemini-2.5-flash-lite): $0.10 / $0.40
+    # - anthropic (claude-haiku-4-5): $1.00 / $5.00
     default_models: dict[str, str] = {
         "openai": "gpt-4o-mini",
         "gemini": "gemini-2.5-flash-lite",
-        "anthropic": "claude-3-5-haiku-20241022",
+        "anthropic": "claude-haiku-4-5",
     }
     # Supported LLM providers
     supported_providers: list[str] = ["openai", "gemini", "anthropic"]

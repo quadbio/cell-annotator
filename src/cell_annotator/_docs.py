@@ -43,7 +43,7 @@ cluster_key
 _model = """\
 model
     Model name. If None, uses the default model for the selected or auto-detected provider.
-    Examples: 'gpt-4o-mini', 'gemini-2.5-flash', 'claude-3-haiku'."""
+    Examples: 'gpt-4o-mini', 'gemini-2.5-flash-lite', 'claude-haiku-4-5'."""
 
 _max_completion_tokens = """\
 max_completion_tokens
