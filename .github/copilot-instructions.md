@@ -109,7 +109,8 @@ cell_ann = CellAnnotator(
 ### LLM Provider Selection
 - Providers: `"openai"` (default), `"gemini"`, `"anthropic"`
 - API keys via environment variables or `.env` file (loaded with python-dotenv)
-- Models: `gpt-4o-mini` (default), `gpt-4o`, `gemini-2.0-flash-exp`, `claude-3-5-sonnet-20241022`
+- Models: `gpt-4o-mini`, `gemini-2.5-flash-lite`, `claude-haiku-4-5` (defaults)
+- Anthropic is most expensive ($1/$5 per 1M tokens), minimize usage in tests
 
 ### Structured Outputs with Pydantic
 - `CellTypeListOutput`: List of expected cell types
