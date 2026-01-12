@@ -11,6 +11,9 @@ __pycache__/
 # Distribution / packaging
 /dist/
 
+# Lock files (library, not application)
+uv.lock
+
 # Tests and coverage
 /data/
 /node_modules/
