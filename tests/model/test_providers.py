@@ -7,7 +7,7 @@ from flaky import flaky
 
 from cell_annotator._constants import PackageConstants
 from cell_annotator._response_formats import BaseOutput
-from cell_annotator.model._providers import AnthropicProvider, GeminiProvider, OpenAIProvider
+from cell_annotator.model._providers import AnthropicProvider, GeminiProvider, OpenAIProvider, OpenRouterProvider
 
 
 class SimpleOutput(BaseOutput):
@@ -52,16 +52,29 @@ class TestLLMProviders:
         provider_with_key = AnthropicProvider(api_key="test-key")
         assert provider_with_key._api_key == "test-key"
 
+    def test_openrouter_provider_initialization(self):
+        """Test OpenRouter provider initialization."""
+        # Test with no API key
+        provider = OpenRouterProvider()
+        assert provider is not None
+        assert provider._api_key is None
+
+        # Test with manual API key
+        provider_with_key = OpenRouterProvider(api_key="test-key")
+        assert provider_with_key._api_key == "test-key"
+
     def test_provider_repr(self):
         """Test string representation of providers."""
         openai_provider = OpenAIProvider()
         gemini_provider = GeminiProvider()
         anthropic_provider = AnthropicProvider()
+        openrouter_provider = OpenRouterProvider()
 
         # Should contain provider name
         assert "OpenAIProvider" in repr(openai_provider)
         assert "GeminiProvider" in repr(gemini_provider)
         assert "AnthropicProvider" in repr(anthropic_provider)
+        assert "OpenRouterProvider" in repr(openrouter_provider)
 
 
 class TestOpenAIProvider:
@@ -213,6 +226,52 @@ class TestAnthropicProvider:
         assert provider_with_key._api_key == "test-key"
 
 
+class TestOpenRouterProvider:
+    """Isolated tests for OpenRouter provider."""
+
+    @flaky
+    @pytest.mark.skipif(not os.getenv("OPENROUTER_API_KEY"), reason="OPENROUTER_API_KEY not available")
+    @pytest.mark.real_llm_query()
+    def test_openrouter_list_models_real(self):
+        """Test OpenRouter model listing with real API."""
+        provider = OpenRouterProvider()
+        models = provider.list_available_models()
+
+        assert isinstance(models, list)
+        assert len(models) > 0
+        model_names = [model.lower() for model in models]
+        assert any("/" in model for model in model_names)
+
+    @flaky
+    @pytest.mark.skipif(not os.getenv("OPENROUTER_API_KEY"), reason="OPENROUTER_API_KEY not available")
+    @pytest.mark.real_llm_query()
+    def test_openrouter_query_real(self):
+        """Test OpenRouter query with real API call."""
+        provider = OpenRouterProvider()
+
+        response = provider.query(
+            agent_description="You are a helpful assistant.",
+            instruction="Say hello in exactly one word.",
+            model=PackageConstants.default_models["openrouter"],
+            response_format=SimpleOutput,
+            max_completion_tokens=50,
+        )
+
+        assert isinstance(response, SimpleOutput)
+        assert hasattr(response, "text")
+        assert len(response.text.strip()) > 0
+
+    def test_openrouter_initialization(self):
+        """Test OpenRouter provider initialization and basic properties."""
+        provider = OpenRouterProvider()
+        assert provider is not None
+        assert provider._api_key is None
+
+        # Test with manual API key
+        provider_with_key = OpenRouterProvider(api_key="test-key")
+        assert provider_with_key._api_key == "test-key"
+
+
 class TestProviderIntegration:
     """Integration tests for provider functionality."""
 
@@ -222,6 +281,7 @@ class TestProviderIntegration:
             "openai": OpenAIProvider,
             "gemini": GeminiProvider,
             "anthropic": AnthropicProvider,
+            "openrouter": OpenRouterProvider,
         }
 
         for name, provider_class in providers.items():
@@ -231,7 +291,7 @@ class TestProviderIntegration:
 
     @flaky
     @pytest.mark.skipif(
-        not any(os.getenv(key) for key in ["OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY"]),
+        not any(os.getenv(key) for key in ["OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY"]),
         reason="No API keys available for testing",
     )
     @pytest.mark.real_llm_query()
@@ -245,6 +305,8 @@ class TestProviderIntegration:
             providers_to_test.append(("gemini", GeminiProvider()))
         if os.getenv("ANTHROPIC_API_KEY"):
             providers_to_test.append(("anthropic", AnthropicProvider()))
+        if os.getenv("OPENROUTER_API_KEY"):
+            providers_to_test.append(("openrouter", OpenRouterProvider()))
 
         for provider_name, provider in providers_to_test:
             print(f"Testing {provider_name} models...")
@@ -259,10 +321,11 @@ class TestProviderIntegration:
             OpenAIProvider(api_key="invalid-openai-key"),
             GeminiProvider(api_key="invalid-gemini-key"),
             AnthropicProvider(api_key="invalid-anthropic-key"),
+            OpenRouterProvider(api_key="invalid-openrouter-key"),
         ]
 
         # Just verify they were created successfully
-        assert len(invalid_providers) == 3
+        assert len(invalid_providers) == 4
         for provider in invalid_providers:
             assert provider is not None
 
@@ -272,6 +335,7 @@ class TestProviderIntegration:
             OpenAIProvider(api_key="fake-key"),
             GeminiProvider(api_key="fake-key"),
             AnthropicProvider(api_key="fake-key"),
+            OpenRouterProvider(api_key="fake-key"),
         ]
 
         # Just test that providers can be created and have the expected interface

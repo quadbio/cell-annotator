@@ -54,7 +54,15 @@ class SampleAnnotator(BaseAnnotator):
         _skip_validation: bool = False,
     ):
         super().__init__(
-            species, tissue, stage, cluster_key, model, max_completion_tokens, provider, api_key, _skip_validation
+            species,
+            tissue,
+            stage,
+            cluster_key,
+            model,
+            max_completion_tokens,
+            provider,
+            api_key,
+            _skip_validation,
         )
         self.adata = adata
         self.sample_name = sample_name

@@ -119,11 +119,17 @@ class LLMInterface(APIKeyMixin):
         -------
         Provider name.
         """
-        if any(keyword in model.lower() for keyword in ["gpt", "o1"]):
+        model_lower = model.lower()
+
+        # OpenRouter uses '<provider>/<model>' slugs (e.g. 'openai/gpt-4o-mini').
+        # The 'models/' guard avoids false-matching Gemini IDs like 'models/gemini-1.5-flash'.
+        if "/" in model and not model_lower.startswith("models/"):
+            return "openrouter"
+        if any(keyword in model_lower for keyword in ["gpt", "o1"]):
             return "openai"
-        elif any(keyword in model.lower() for keyword in ["gemini", "bison"]):
+        elif any(keyword in model_lower for keyword in ["gemini", "bison"]):
             return "gemini"
-        elif any(keyword in model.lower() for keyword in ["claude", "sonnet", "haiku", "opus"]):
+        elif any(keyword in model_lower for keyword in ["claude", "sonnet", "haiku", "opus"]):
             return "anthropic"
         else:
             # Default to OpenAI for unknown models
@@ -188,6 +194,30 @@ class LLMInterface(APIKeyMixin):
         If return_details=False: True if the test query succeeds, False otherwise.
         If return_details=True: Tuple of (success, message) with detailed status.
         """
+        # OpenRouter aggregates many upstream models with varying structured-output
+        # behavior. For OpenRouter, treat "model is available in account catalog"
+        # as a valid readiness signal.
+        if self._provider_name == "openrouter":
+            try:
+                available_models = self.list_available_models()
+                if self.model in available_models:
+                    if return_details:
+                        return (
+                            True,
+                            (
+                                f"✅ OpenRouter model '{self.model}' is available for this account. "
+                                "Proceeding in compatibility mode."
+                            ),
+                        )
+                    return True
+                if return_details:
+                    return False, f"❌ OpenRouter model '{self.model}' is not available for this account"
+                return False
+            except Exception as e:  # noqa: BLE001
+                if return_details:
+                    return False, f"❌ Could not verify OpenRouter model availability: {str(e)}"
+                return False
+
         try:
             # Use a simple test response format with default values
 
