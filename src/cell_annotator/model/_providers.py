@@ -189,7 +189,9 @@ class OpenAIProvider(LLMProvider):
             logger.warning(failure_reason)
             return response_format.default_failure(failure_reason=failure_reason)
         except openai.OpenAIError as e:
-            logger.debug("Structured parse failed for model '%s'. Falling back to JSON-mode query. Error: %s", model, str(e))
+            logger.debug(
+                "Structured parse failed for model '%s'. Falling back to JSON-mode query. Error: %s", model, str(e)
+            )
             return self._query_with_json_fallback(
                 model=model,
                 response_format=response_format,
@@ -198,7 +200,9 @@ class OpenAIProvider(LLMProvider):
                 fallback_error=str(e),
             )
         except Exception as e:  # noqa: BLE001
-            logger.debug("Non-OpenAI parse failure for model '%s'. Falling back to JSON-mode query. Error: %s", model, str(e))
+            logger.debug(
+                "Non-OpenAI parse failure for model '%s'. Falling back to JSON-mode query. Error: %s", model, str(e)
+            )
             return self._query_with_json_fallback(
                 model=model,
                 response_format=response_format,
@@ -255,8 +259,7 @@ class OpenAIProvider(LLMProvider):
             if not text:
                 return response_format.default_failure(
                     failure_reason=(
-                        "Model returned empty content during JSON fallback. "
-                        f"Original parse error: {fallback_error}"
+                        f"Model returned empty content during JSON fallback. Original parse error: {fallback_error}"
                     )
                 )
 
@@ -377,10 +380,7 @@ class OpenRouterProvider(OpenAIProvider):
                 model_preview = ", ".join(models)
                 if len(self.list_available_models()) > 5:
                     model_preview += ", ..."
-                return (
-                    f"OpenRouterProvider(models: {model_preview}). "
-                    "Call .list_available_models() for complete list."
-                )
+                return f"OpenRouterProvider(models: {model_preview}). Call .list_available_models() for complete list."
             else:
                 return "OpenRouterProvider(models: none available). Call .list_available_models() for complete list."
         except Exception:  # noqa: BLE001
@@ -403,6 +403,7 @@ class OpenRouterProvider(OpenAIProvider):
             filtered_models.append(model.id)
 
         return sorted(filtered_models)
+
 
 class GeminiProvider(LLMProvider):
     """Google Gemini provider implementation."""

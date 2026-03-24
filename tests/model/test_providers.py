@@ -291,7 +291,9 @@ class TestProviderIntegration:
 
     @flaky
     @pytest.mark.skipif(
-        not any(os.getenv(key) for key in ["OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY"]),
+        not any(
+            os.getenv(key) for key in ["OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY"]
+        ),
         reason="No API keys available for testing",
     )
     @pytest.mark.real_llm_query()
