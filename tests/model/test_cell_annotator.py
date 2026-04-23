@@ -6,36 +6,51 @@ from tests.utils import expected_marker_genes, fibroblast_cell_types, neuronal_c
 class TestCellAnnotator:
     @flaky
     @pytest.mark.real_llm_query()
-    def test_get_expected_cell_type_markers(self, cell_annotator_single):
+    def test_get_expected_cell_type_markers(self, cell_annotator_single, provider_name):
         """Test getting expected cell type markers with single sample data."""
         cell_annotator = cell_annotator_single
         cell_annotator.get_expected_cell_type_markers()
         expected_markers = cell_annotator.expected_marker_genes
-        print("Expected Markers:", expected_markers)
 
-        assert expected_markers is not None
-        assert isinstance(expected_markers, dict)
+        assert expected_markers is not None, f"[{provider_name}] expected_marker_genes is None"
+        assert isinstance(expected_markers, dict), (
+            f"[{provider_name}] expected_marker_genes is not a dict: got {type(expected_markers).__name__}"
+        )
+        assert expected_markers, (
+            f"[{provider_name}] LLM returned an empty marker-gene dict — likely a structured-output "
+            f"parsing fallback. Full response: {expected_markers!r}"
+        )
 
-        neuron_markers_found = False
-        fibroblast_markers_found = False
+        def _find_matches(synonyms: list[str], expected: list[str]) -> tuple[list[str], list[str]]:
+            matching_keys = [k for k in expected_markers if any(syn in k for syn in synonyms)]
+            hits = [
+                (k, marker)
+                for k in matching_keys
+                for marker in expected
+                if any(marker in m for m in expected_markers[k])
+            ]
+            return matching_keys, hits
 
-        for key, markers in expected_markers.items():
-            print(f"Cell Type: {key}, Markers: {markers}")
-            if any(neuron_synonym in key for neuron_synonym in neuronal_cell_types):
-                if any(
-                    any(marker in model_marker for model_marker in markers)
-                    for marker in expected_marker_genes["Neuron"]
-                ):
-                    neuron_markers_found = True
-            if any(fibroblast_synonym in key for fibroblast_synonym in fibroblast_cell_types):
-                if any(
-                    any(marker in model_marker for model_marker in markers)
-                    for marker in expected_marker_genes["Fibroblast"]
-                ):
-                    fibroblast_markers_found = True
+        neuron_keys, neuron_hits = _find_matches(neuronal_cell_types, expected_marker_genes["Neuron"])
+        fibroblast_keys, fibroblast_hits = _find_matches(fibroblast_cell_types, expected_marker_genes["Fibroblast"])
 
-        assert neuron_markers_found
-        assert fibroblast_markers_found
+        context = (
+            f"[{provider_name}] returned {len(expected_markers)} cell types: {list(expected_markers)}. "
+            f"Full response: {expected_markers!r}"
+        )
+
+        assert neuron_keys, f"No returned cell-type key matched any neuron synonym {neuronal_cell_types}. {context}"
+        assert neuron_hits, (
+            f"Neuron-like keys {neuron_keys} contained none of the expected markers "
+            f"{expected_marker_genes['Neuron']}. {context}"
+        )
+        assert fibroblast_keys, (
+            f"No returned cell-type key matched any fibroblast synonym {fibroblast_cell_types}. {context}"
+        )
+        assert fibroblast_hits, (
+            f"Fibroblast-like keys {fibroblast_keys} contained none of the expected markers "
+            f"{expected_marker_genes['Fibroblast']}. {context}"
+        )
 
     @flaky
     @pytest.mark.real_llm_query()
