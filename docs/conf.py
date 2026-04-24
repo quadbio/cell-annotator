@@ -112,7 +112,7 @@ extlinks = {
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints"]
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "**.ipynb_checkpoints", "notebooks/tests/**"]
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -138,4 +138,6 @@ nitpick_ignore = [
     # If building the documentation fails because of a missing link that is outside your control,
     # you can add an exception to this list.
     #     ("py:class", "igraph.Graph"),
+    # Private Pydantic base used in provider type hints; not part of public API.
+    ("py:class", "cell_annotator._response_formats.BaseOutput"),
 ]
