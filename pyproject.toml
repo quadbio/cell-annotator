@@ -45,12 +45,43 @@ optional-dependencies.anthropic = [
 optional-dependencies.colors = [
   "colorspacious>=1.1",
 ]
-# Development dependencies
-optional-dependencies.dev = [
+optional-dependencies.gemini = [
+  "google-genai>=1.27",
+]
+optional-dependencies.gpu = [
+  "rapids-singlecell>=0.12",
+]
+# Core provider dependencies - one of these is required to use the package
+optional-dependencies.openai = [
+  "openai>=1.90",
+]
+# Thin pointer so `pip install cell-annotator[test]` pulls in the provider extras
+# that the test suite exercises. Python test dependencies live in
+# [dependency-groups] test below and are pulled in by hatch / `uv sync --group test`.
+optional-dependencies.test = [
+  "cell-annotator[all-providers]",
+  "cell-annotator[colors]",
+]
+optional-dependencies.tutorials = [
+  "squidpy>=1.6",
+]
+# https://docs.pypi.org/project_metadata/#project-urls
+urls.Documentation = "https://cell-annotator.readthedocs.io/"
+urls.Homepage = "https://cell-annotator.readthedocs.io/"
+urls.Source = "https://github.com/quadbio/cell-annotator"
+
+[dependency-groups]
+dev = [
   "pre-commit",
   "twine>=4.0.2",
 ]
-optional-dependencies.doc = [
+test = [
+  "coverage>=7.10",
+  "flaky",
+  "pytest",
+  "pytest-cov",     # For VS Code's coverage functionality
+]
+doc = [
   "docutils>=0.8,!=0.18.*,!=0.19.*",
   "ipykernel",
   "ipython",
@@ -66,41 +97,20 @@ optional-dependencies.doc = [
   "sphinxcontrib-bibtex>=1",
   "sphinxext-opengraph",
 ]
-optional-dependencies.gemini = [
-  "google-genai>=1.27",
-]
-optional-dependencies.gpu = [
-  "rapids-singlecell>=0.12",
-]
-# Core provider dependencies - one of these is required to use the package
-optional-dependencies.openai = [
-  "openai>=1.90",
-]
-optional-dependencies.test = [
-  "cell-annotator[all-providers]", # tests use all providers
-  "cell-annotator[colors]",        # tests use color validation
-  "coverage>=7.10",
-  "flaky",
-  "pytest",
-  "pytest-cov",                    # For VS Code's coverage functionality
-]
-optional-dependencies.tutorials = [
-  "squidpy>=1.6",
-]
-# https://docs.pypi.org/project_metadata/#project-urls
-urls.Documentation = "https://cell-annotator.readthedocs.io/"
-urls.Homepage = "https://cell-annotator.readthedocs.io/"
-urls.Source = "https://github.com/quadbio/cell-annotator"
 
 [tool.hatch]
 envs.default.installer = "uv"
-envs.default.features = [ "dev" ]
-envs.docs.features = [ "doc" ]
+envs.default.dependency-groups = [ "dev" ]
+envs.docs.dependency-groups = [ "doc" ]
 envs.docs.dev-mode = true
 envs.docs.scripts.build = "sphinx-build -M html docs docs/_build {args}"
 envs.docs.scripts.open = "python -m webbrowser -t docs/_build/html/index.html"
 envs.docs.scripts.clean = "git clean -fdX -- {args:docs}"
-envs.hatch-test.features = [ "dev", "test" ]
+# hatch-test needs both:
+#   - dependency-groups: Python test packages (pytest, coverage, flaky, ...)
+#   - features: provider extras via optional-dependencies.test thin pointer
+envs.hatch-test.dependency-groups = [ "dev", "test" ]
+envs.hatch-test.features = [ "test" ]
 envs.hatch-test.matrix = [
   # Test the lowest and highest supported Python versions with normal deps
   { deps = [ "stable" ], python = [ "3.11", "3.13" ] },
