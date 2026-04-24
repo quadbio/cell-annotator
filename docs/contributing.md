@@ -106,8 +106,11 @@ only because an outdated sphinx plugin pins an older version.
 To initalize a virtual environment in the `.venv` directory of your project, simply run
 
 ```bash
-uv sync --all-extras
+uv sync --all-extras --all-groups
 ```
+
+`--all-extras` pulls in the provider layers (openai, anthropic, gemini, …);
+`--all-groups` pulls in the `dev`, `test`, and `doc` PEP 735 dependency groups.
 
 The `.venv` directory is typically automatically discovered by IDEs such as VS Code.
 
@@ -122,10 +125,16 @@ we describe how you can manage environments manually using `pip`:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev,test,doc]"
+pip install --group dev --group test --group doc -e ".[test]"
 ```
 
 The `.venv` directory is typically automatically discovered by IDEs such as VS Code.
+
+Note: `pip install --group` requires pip >= 25.1 ([PEP 735][]).
+The `-e ".[test]"` extra pulls in the provider layers the test suite
+exercises; `--group` pulls in the dev / test / doc Python packages.
+
+[PEP 735]: https://peps.python.org/pep-0735/
 
 ::::
 :::::
