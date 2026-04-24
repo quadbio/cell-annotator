@@ -32,18 +32,15 @@ dependencies = [
   # for debug logging (referenced from the issue template)
   "session-info2",
 ]
-
 # Convenience groups combining providers
 optional-dependencies.all-providers = [
   "cell-annotator[anthropic]",
   "cell-annotator[gemini]",
   "cell-annotator[openai]",
 ]
-
 optional-dependencies.anthropic = [
   "anthropic>=0.59",
 ]
-
 # Other optional functionality
 optional-dependencies.colors = [
   "colorspacious>=1.1",
@@ -69,14 +66,12 @@ optional-dependencies.doc = [
   "sphinxcontrib-bibtex>=1",
   "sphinxext-opengraph",
 ]
-
 optional-dependencies.gemini = [
   "google-genai>=1.27",
 ]
 optional-dependencies.gpu = [
   "rapids-singlecell>=0.12",
 ]
-
 # Core provider dependencies - one of these is required to use the package
 optional-dependencies.openai = [
   "openai>=1.90",
@@ -89,57 +84,41 @@ optional-dependencies.test = [
   "pytest",
   "pytest-cov",                    # For VS Code's coverage functionality
 ]
-
 optional-dependencies.tutorials = [
   "squidpy>=1.6",
 ]
-
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://cell-annotator.readthedocs.io/"
 urls.Homepage = "https://cell-annotator.readthedocs.io/"
 urls.Source = "https://github.com/quadbio/cell-annotator"
 
-[tool.hatch.version]
-source = "vcs"
-
-[tool.hatch.envs.default]
-installer = "uv"
-features = [ "dev" ]
-
-[tool.hatch.envs.docs]
-features = [ "doc" ]
-dev-mode = true
-scripts.build = "sphinx-build -M html docs docs/_build {args}"
-scripts.open = "python -m webbrowser -t docs/_build/html/index.html"
-scripts.clean = "git clean -fdX -- {args:docs}"
-
-# Test the lowest and highest supported Python versions with normal deps
-[[tool.hatch.envs.hatch-test.matrix]]
-deps = [ "stable" ]
-python = [ "3.11", "3.13" ]
-
-# Test the newest supported Python version also with pre-release deps
-[[tool.hatch.envs.hatch-test.matrix]]
-deps = [ "pre" ]
-python = [ "3.13" ]
-
-[tool.hatch.envs.hatch-test]
-features = [ "dev", "test" ]
-
-[tool.hatch.envs.hatch-test.overrides]
+[tool.hatch]
+envs.default.installer = "uv"
+envs.default.features = [ "dev" ]
+envs.docs.features = [ "doc" ]
+envs.docs.dev-mode = true
+envs.docs.scripts.build = "sphinx-build -M html docs docs/_build {args}"
+envs.docs.scripts.open = "python -m webbrowser -t docs/_build/html/index.html"
+envs.docs.scripts.clean = "git clean -fdX -- {args:docs}"
+envs.hatch-test.features = [ "dev", "test" ]
+envs.hatch-test.matrix = [
+  # Test the lowest and highest supported Python versions with normal deps
+  { deps = [ "stable" ], python = [ "3.11", "3.13" ] },
+  # Test the newest supported Python version also with pre-release deps
+  { deps = [ "pre" ], python = [ "3.13" ] },
+]
 # If the matrix variable `deps` is set to "pre",
 # set the environment variable `UV_PRERELEASE` to "allow".
-matrix.deps.env-vars = [
+envs.hatch-test.overrides.matrix.deps.env-vars = [
   { key = "UV_PRERELEASE", value = "allow", if = [ "pre" ] },
 ]
+version.source = "vcs"
 
 [tool.ruff]
 line-length = 120
 src = [ "src" ]
 extend-include = [ "*.ipynb" ]
-
 format.docstring-code-format = true
-
 lint.select = [
   "B",      # flake8-bugbear
   "BLE",    # flake8-blind-except
@@ -173,22 +152,22 @@ lint.per-file-ignores."docs/*" = [ "I" ]
 lint.per-file-ignores."tests/*" = [ "D" ]
 lint.pydocstyle.convention = "numpy"
 
-[tool.pytest.ini_options]
-markers = [
+[tool.pytest]
+ini_options.markers = [
   "real_llm_query: mark a test that sends data to an actual LLM provider.",
 ]
-testpaths = [ "tests" ]
-xfail_strict = true
-addopts = [
+ini_options.testpaths = [ "tests" ]
+ini_options.xfail_strict = true
+ini_options.addopts = [
   "--import-mode=importlib", # allow using test files with same name
 ]
 
-[tool.coverage.run]
-source = [ "cell_annotator" ]
-patch = [ "subprocess" ]
-omit = [
+[tool.coverage]
+run.omit = [
   "**/test_*.py",
 ]
+run.patch = [ "subprocess" ]
+run.source = [ "cell_annotator" ]
 
 [tool.cruft]
 skip = [
