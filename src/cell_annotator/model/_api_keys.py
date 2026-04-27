@@ -32,6 +32,11 @@ class APIKeyManager:
             "setup_url": "https://console.anthropic.com/settings/keys",
             "description": "Anthropic Claude models",
         },
+        "openrouter": {
+            "env_var": "OPENROUTER_API_KEY",
+            "setup_url": "https://openrouter.ai/settings/keys",
+            "description": "OpenRouter models (aggregated providers)",
+        },
     }
 
     def __init__(self, auto_load_env: bool = True):
@@ -186,6 +191,10 @@ class APIKeyManager:
             provider = "gemini"
         elif any(claude_name in model_lower for claude_name in ["claude", "anthropic"]):
             provider = "anthropic"
+        elif "/" in model and not model_lower.startswith("models/"):
+            # OpenRouter uses '<provider>/<model>' slugs (e.g. 'openai/gpt-4o-mini').
+            # The 'models/' guard avoids false-matching Gemini IDs like 'models/gemini-1.5-flash'.
+            provider = "openrouter"
         elif any(openai_name in model_lower for openai_name in ["gpt", "o1", "davinci", "curie", "babbage", "ada"]):
             provider = "openai"
         else:

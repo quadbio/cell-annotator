@@ -52,7 +52,7 @@ class TestBaseAnnotator:
 
     def test_explicit_provider_selection(self):
         """Test explicit provider selection."""
-        for provider_name in ["openai", "gemini", "anthropic"]:
+        for provider_name in ["openai", "gemini", "anthropic", "openrouter"]:
             try:
                 annotator = BaseAnnotator(
                     species="human",
@@ -74,6 +74,7 @@ class TestBaseAnnotator:
             ("openai", "gpt-4o-mini"),
             ("gemini", "gemini-1.5-flash"),
             ("anthropic", "claude-3-haiku-20240307"),
+            ("openrouter", "openai/gpt-4o-mini"),
         ]
 
         for provider_name, model in test_cases:

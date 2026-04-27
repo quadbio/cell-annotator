@@ -38,6 +38,8 @@ class TestLLMInterface:
             ("claude-3-5-sonnet-20241022", "anthropic"),
             ("claude-3-haiku-20240307", "anthropic"),
             ("claude-3-opus-20240229", "anthropic"),
+            ("openai/gpt-4o-mini", "openrouter"),
+            ("anthropic/claude-3.5-sonnet", "openrouter"),
             ("unknown-model", "openai"),  # Should default to openai
         ],
     )
