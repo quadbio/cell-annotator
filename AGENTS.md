@@ -29,6 +29,12 @@ Every fact should have one owner. This file owns invariants and the reference ta
 | Provider wiring (OpenAI / Anthropic / Gemini) | `src/cell_annotator/model/_providers.py`, `llm_interface.py`, `base_annotator.py` |
 | Release notes | GitHub Releases (<https://github.com/quadbio/cell-annotator/releases>) |
 
+## Review Guidelines
+
+For GitHub PR reviews, use `REVIEW_GUIDE.md` as the canonical review workflow and
+source of review-specific risk areas, testing checks, and documentation-impact checks.
+This file only owns the project invariants and source-of-truth map below.
+
 ## Critical Invariants
 
 - **Data privacy.** Only cluster marker gene *names*, plus `species`, `tissue`, and (optionally) `stage`, are sent to LLM providers. Raw expression values, cell-level data, and user metadata must never cross the provider boundary. Any PR that broadens what is sent is a hard red flag.
