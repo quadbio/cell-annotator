@@ -126,6 +126,8 @@ This package sends cluster marker genes, and the `species` and `tissue` you defi
 
 Please ensure your usage of this package aligns with your institution's guidelines on data privacy and the use of external AI models. Each provider has its own privacy policy and terms of service. Review these carefully before using CellAnnotator with sensitive or regulated data.
 
+When using OpenRouter, requests are forwarded to the upstream provider implied by your model slug (e.g. `openai/...`, `anthropic/...`). Review both [OpenRouter's privacy policy](https://openrouter.ai/privacy) and the upstream provider's. Some OpenRouter model tiers may log prompts by default; users who need privacy guarantees should configure this via their OpenRouter account settings.
+
 
 ## 🙏 Credits
 This tool was inspired by [Hou et al., Nature Methods 2024](https://www.nature.com/articles/s41592-024-02235-4) and [https://github.com/VPetukhov/GPTCellAnnotator](https://github.com/VPetukhov/GPTCellAnnotator).
