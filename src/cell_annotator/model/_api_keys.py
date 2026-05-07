@@ -15,27 +15,32 @@ class APIKeyManager:
     on setup for different providers.
     """
 
-    # Provider configurations
+    # Provider configurations. ``model_keywords`` feed ``detect_provider_from_model``;
+    # OpenRouter is detected via the ``provider/model`` slash heuristic instead.
     PROVIDER_CONFIG = {
         "openai": {
             "env_var": "OPENAI_API_KEY",
             "setup_url": "https://platform.openai.com/api-keys",
             "description": "OpenAI models (GPT, o1, etc.)",
+            "model_keywords": ("gpt", "o1", "davinci", "curie", "babbage", "ada"),
         },
         "gemini": {
             "env_var": "GEMINI_API_KEY",
             "setup_url": "https://aistudio.google.com/apikey",
             "description": "Google Gemini models",
+            "model_keywords": ("gemini", "bison"),
         },
         "anthropic": {
             "env_var": "ANTHROPIC_API_KEY",
             "setup_url": "https://console.anthropic.com/settings/keys",
             "description": "Anthropic Claude models",
+            "model_keywords": ("claude", "anthropic", "sonnet", "haiku", "opus"),
         },
         "openrouter": {
             "env_var": "OPENROUTER_API_KEY",
             "setup_url": "https://openrouter.ai/settings/keys",
             "description": "OpenRouter models (aggregated providers)",
+            "model_keywords": (),
         },
     }
 
@@ -173,8 +178,6 @@ class APIKeyManager:
         """
         Check if a specific model is accessible by detecting its provider.
 
-        Uses heuristics to detect provider from model name.
-
         Parameters
         ----------
         model
@@ -184,27 +187,8 @@ class APIKeyManager:
         -------
         Tuple of (is_accessible, provider_name)
         """
-        # Detect provider from model name using heuristics
-        model_lower = model.lower()
-
-        if any(gemini_name in model_lower for gemini_name in ["gemini", "bison"]):
-            provider = "gemini"
-        elif any(claude_name in model_lower for claude_name in ["claude", "anthropic"]):
-            provider = "anthropic"
-        elif "/" in model and not model_lower.startswith("models/"):
-            # OpenRouter uses '<provider>/<model>' slugs (e.g. 'openai/gpt-4o-mini').
-            # The 'models/' guard avoids false-matching Gemini IDs like 'models/gemini-1.5-flash'.
-            provider = "openrouter"
-        elif any(openai_name in model_lower for openai_name in ["gpt", "o1", "davinci", "curie", "babbage", "ada"]):
-            provider = "openai"
-        else:
-            # Default to OpenAI for unknown models (most common)
-            provider = "openai"
-
-        if self.validate_provider(provider):
-            return True, provider
-        else:
-            return False, provider
+        provider = detect_provider_from_model(model)
+        return self.validate_provider(provider), provider
 
     def check_and_warn(self, provider: str | None = None, model: str | None = None) -> bool:
         """
@@ -256,6 +240,42 @@ class APIKeyManager:
             for prov in self.PROVIDER_CONFIG:
                 logger.info("   %s", self.get_setup_instructions(prov))
             return False
+
+
+def detect_provider_from_model(model: str) -> str:
+    """
+    Auto-detect the LLM provider from a model name string.
+
+    OpenRouter slugs follow ``<provider>/<model>`` (e.g. ``openai/gpt-4o-mini``);
+    the ``models/`` prefix that Gemini IDs sometimes carry is excluded so it
+    does not false-match. Otherwise, match keywords from
+    ``APIKeyManager.PROVIDER_CONFIG[*].model_keywords`` in priority order
+    (gemini, anthropic, openai). Defaults to ``"openai"`` if nothing matches.
+
+    Parameters
+    ----------
+    model
+        Model name or slug.
+
+    Returns
+    -------
+    Provider name.
+    """
+    model_lower = model.lower()
+
+    # OpenRouter uses '<provider>/<model>' slugs (e.g. 'openai/gpt-4o-mini').
+    # The 'models/' guard avoids false-matching Gemini IDs like 'models/gemini-1.5-flash'.
+    if "/" in model and not model_lower.startswith("models/"):
+        return "openrouter"
+
+    # Priority order matters: a model name like "ada-claude-experiment" should
+    # route to anthropic, not openai (anthropic-specific keywords win).
+    for provider in ("gemini", "anthropic", "openai"):
+        keywords = APIKeyManager.PROVIDER_CONFIG[provider].get("model_keywords", ())
+        if any(keyword in model_lower for keyword in keywords):
+            return provider
+
+    return "openai"
 
 
 class APIKeyMixin:

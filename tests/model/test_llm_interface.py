@@ -41,6 +41,7 @@ class TestLLMInterface:
             ("claude-3-opus-20240229", "anthropic"),
             ("openai/gpt-4o-mini", "openrouter"),
             ("anthropic/claude-3.5-sonnet", "openrouter"),
+            ("models/gemini-1.5-flash", "gemini"),  # 'models/' prefix must NOT trigger OpenRouter
             ("unknown-model", "openai"),  # Should default to openai
         ],
     )

@@ -4,7 +4,7 @@ from cell_annotator._constants import PackageConstants
 from cell_annotator._docs import d
 from cell_annotator._logging import logger
 from cell_annotator._response_formats import BaseOutput
-from cell_annotator.model._api_keys import APIKeyMixin
+from cell_annotator.model._api_keys import APIKeyMixin, detect_provider_from_model
 from cell_annotator.model._providers import get_provider
 
 
@@ -108,33 +108,8 @@ class LLMInterface(APIKeyMixin):
         return "\n".join(lines)
 
     def _detect_provider_from_model(self, model: str) -> str:
-        """
-        Auto-detect provider from model name.
-
-        Parameters
-        ----------
-        model
-            Model name.
-
-        Returns
-        -------
-        Provider name.
-        """
-        model_lower = model.lower()
-
-        # OpenRouter uses '<provider>/<model>' slugs (e.g. 'openai/gpt-4o-mini').
-        # The 'models/' guard avoids false-matching Gemini IDs like 'models/gemini-1.5-flash'.
-        if "/" in model and not model_lower.startswith("models/"):
-            return "openrouter"
-        if any(keyword in model_lower for keyword in ["gpt", "o1"]):
-            return "openai"
-        elif any(keyword in model_lower for keyword in ["gemini", "bison"]):
-            return "gemini"
-        elif any(keyword in model_lower for keyword in ["claude", "sonnet", "haiku", "opus"]):
-            return "anthropic"
-        else:
-            # Default to OpenAI for unknown models
-            return "openai"
+        """Auto-detect provider from model name. Thin wrapper around the shared helper."""
+        return detect_provider_from_model(model)
 
     @d.dedent
     def query_llm(
