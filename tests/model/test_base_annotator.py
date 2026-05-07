@@ -1,3 +1,4 @@
+import os
 from unittest.mock import patch
 
 import pytest
@@ -37,6 +38,12 @@ class TestBaseAnnotator:
         print(f"✅ {base_annotator._provider_name} provider test passed with model: {base_annotator.model}")
         print(f"Response: {response.parsed_response}")
 
+    @pytest.mark.skipif(
+        not any(
+            os.getenv(key) for key in ["OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY", "OPENROUTER_API_KEY"]
+        ),
+        reason="Auto-detection requires at least one provider key in env (fork-PR CI runs don't have access to secrets).",
+    )
     def test_provider_auto_detection(self):
         """Test automatic provider detection when none specified."""
         annotator = BaseAnnotator(
