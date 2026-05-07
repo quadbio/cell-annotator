@@ -49,7 +49,16 @@ class CellAnnotator(BaseAnnotator):
         provider: str | None = None,
         api_key: str | None = None,
     ):
-        super().__init__(species, tissue, stage, cluster_key, model, max_completion_tokens, provider, api_key)
+        super().__init__(
+            species,
+            tissue,
+            stage,
+            cluster_key,
+            model,
+            max_completion_tokens,
+            provider,
+            api_key,
+        )
         self.adata = adata
         self.sample_key = sample_key
         self._api_key = api_key  # Store API key for passing to SampleAnnotators

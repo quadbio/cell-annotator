@@ -1,5 +1,6 @@
 """Tests for LLMInterface class."""
 
+import os
 from unittest.mock import patch
 
 import pytest
@@ -38,6 +39,9 @@ class TestLLMInterface:
             ("claude-3-5-sonnet-20241022", "anthropic"),
             ("claude-3-haiku-20240307", "anthropic"),
             ("claude-3-opus-20240229", "anthropic"),
+            ("openai/gpt-4o-mini", "openrouter"),
+            ("anthropic/claude-3.5-sonnet", "openrouter"),
+            ("models/gemini-1.5-flash", "gemini"),  # 'models/' prefix must NOT trigger OpenRouter
             ("unknown-model", "openai"),  # Should default to openai
         ],
     )
@@ -46,6 +50,22 @@ class TestLLMInterface:
         interface = LLMInterface(_skip_validation=True)
         detected_provider = interface._detect_provider_from_model(model_name)
         assert detected_provider == expected_provider
+
+    def test_skip_validation_with_no_env_keys(self):
+        """``LLMInterface(_skip_validation=True)`` constructs cleanly even when no env API keys are set.
+
+        Regression test: previously the auto-select branch raised ``ValueError("No API keys found")``
+        even when ``_skip_validation=True``, breaking fork-PR CI runs and any caller that relied on
+        the validation skip.
+        """
+        with patch.dict(
+            os.environ,
+            {"OPENAI_API_KEY": "", "GEMINI_API_KEY": "", "ANTHROPIC_API_KEY": "", "OPENROUTER_API_KEY": ""},
+            clear=False,
+        ):
+            interface = LLMInterface(_skip_validation=True)
+            assert interface._provider_name == "openai"
+            assert interface.model is not None
 
     @patch("cell_annotator.model.llm_interface.LLMInterface.query_llm")
     def test_query_success(self, mock_query_llm, provider_name):
