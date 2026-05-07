@@ -359,6 +359,14 @@ class OpenRouterProvider(OpenAIProvider):
     """OpenRouter provider implementation (OpenAI-compatible API)."""
 
     def __init__(self, api_key: str | None = None) -> None:
+        # When no manual key is supplied, resolve the OpenRouter key from the
+        # environment explicitly. The underlying OpenAI client otherwise picks
+        # up ``OPENAI_API_KEY`` (since both providers share the SDK), causing
+        # 401s against ``https://openrouter.ai/api/v1`` whenever both keys
+        # are configured side-by-side.
+        if api_key is None:
+            load_dotenv()
+            api_key = os.getenv("OPENROUTER_API_KEY")
         super().__init__(api_key=api_key)
         self._base_url = "https://openrouter.ai/api/v1"
 

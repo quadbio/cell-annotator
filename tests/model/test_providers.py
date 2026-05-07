@@ -54,12 +54,12 @@ class TestLLMProviders:
 
     def test_openrouter_provider_initialization(self):
         """Test OpenRouter provider initialization."""
-        # Test with no API key
+        # Test with no API key — constructor resolves OPENROUTER_API_KEY from env
+        # (so the SDK doesn't fall through to OPENAI_API_KEY when both are set).
         provider = OpenRouterProvider()
         assert provider is not None
-        assert provider._api_key is None
 
-        # Test with manual API key
+        # Test with manual API key — explicit override wins over env.
         provider_with_key = OpenRouterProvider(api_key="test-key")
         assert provider_with_key._api_key == "test-key"
 
@@ -265,9 +265,8 @@ class TestOpenRouterProvider:
         """Test OpenRouter provider initialization and basic properties."""
         provider = OpenRouterProvider()
         assert provider is not None
-        assert provider._api_key is None
 
-        # Test with manual API key
+        # Test with manual API key — explicit override wins over env.
         provider_with_key = OpenRouterProvider(api_key="test-key")
         assert provider_with_key._api_key == "test-key"
 
