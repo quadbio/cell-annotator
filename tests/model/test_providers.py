@@ -346,3 +346,144 @@ class TestProviderIntegration:
             assert hasattr(provider, "list_available_models")
             assert callable(provider.query)
             assert callable(provider.list_available_models)
+
+
+class _FallbackOutput(BaseOutput):
+    """Test response format whose required field has a default, so ``default_failure`` can construct it."""
+
+    text: str = ""
+
+
+class TestJSONFallback:
+    """Tests for the tiered JSON-fallback chain in OpenAIProvider/OpenRouterProvider."""
+
+    @pytest.mark.parametrize(
+        ("provider_cls", "expected"),
+        [(OpenAIProvider, False), (OpenRouterProvider, True)],
+    )
+    def test_text_repair_default(self, provider_cls, expected):
+        """``enable_text_repair`` is off for OpenAI, on for OpenRouter — the structured-outputs invariant."""
+        assert provider_cls()._enable_text_repair is expected
+
+    @staticmethod
+    def _build_mock_client(*, tier_responses):
+        """Build a mock OpenAI client whose .parse() raises and whose .create() is programmable.
+
+        Each entry in ``tier_responses`` is either a string (returned as ``message.content``)
+        or ``None`` (raises ``RuntimeError`` to fall through to the next tier).
+        """
+        from unittest.mock import MagicMock
+
+        import openai
+
+        client = MagicMock()
+        client.chat.completions.parse.side_effect = openai.OpenAIError("simulated parse failure")
+
+        call_idx = {"i": 0}
+
+        def fake_create(**kwargs):
+            idx = call_idx["i"]
+            call_idx["i"] += 1
+            response = tier_responses[idx] if idx < len(tier_responses) else None
+            if response is None:
+                raise RuntimeError(f"tier {idx + 1} simulated failure")
+            mock_completion = MagicMock()
+            mock_completion.choices = [MagicMock()]
+            mock_completion.choices[0].message.content = response
+            return mock_completion
+
+        client.chat.completions.create.side_effect = fake_create
+        return client
+
+    def test_chain_tries_extra_body_first_then_json_object(self, monkeypatch):
+        """Tier 1 uses ``extra_body`` json_schema; on failure tier 2 uses plain ``json_object``."""
+        provider = OpenAIProvider(api_key="fake", enable_text_repair=False)
+        # Tier 1 fails, tier 2 returns valid JSON.
+        client = self._build_mock_client(tier_responses=[None, '{"text": "ok"}'])
+        monkeypatch.setattr(provider, "_client", client)
+
+        result = provider.query(
+            agent_description="x",
+            instruction="y",
+            model="m",
+            response_format=_FallbackOutput,
+        )
+
+        assert isinstance(result, _FallbackOutput)
+        assert result.text == "ok"
+        calls = client.chat.completions.create.call_args_list
+        assert len(calls) == 2
+        # Tier 1: extra_body json_schema
+        assert "extra_body" in calls[0].kwargs
+        assert calls[0].kwargs["extra_body"]["response_format"]["type"] == "json_schema"
+        # Tier 2: plain json_object
+        assert calls[1].kwargs.get("response_format") == {"type": "json_object"}
+
+    @pytest.mark.parametrize("enable_text_repair", [False, True])
+    def test_text_repair_flag_gates_tier_three(self, monkeypatch, enable_text_repair):
+        """Tier 3 (text-repair) only runs when ``enable_text_repair`` is True."""
+        provider = OpenAIProvider(api_key="fake", enable_text_repair=enable_text_repair)
+        # Tier 1 fails, tier 2 returns prose without JSON braces, tier 3 returns valid JSON.
+        client = self._build_mock_client(
+            tier_responses=[None, "no json here at all", '{"text": "repaired"}'],
+        )
+        monkeypatch.setattr(provider, "_client", client)
+
+        result = provider.query(
+            agent_description="x",
+            instruction="y",
+            model="m",
+            response_format=_FallbackOutput,
+        )
+
+        if enable_text_repair:
+            assert isinstance(result, _FallbackOutput)
+            assert result.text == "repaired"
+            assert client.chat.completions.create.call_count == 3
+        else:
+            assert result.reason_for_failure is not None
+            assert client.chat.completions.create.call_count == 2
+
+    def test_query_reraises_local_error_when_text_repair_disabled(self):
+        """ValueError raised before any API call must propagate when text-repair is off."""
+        from unittest.mock import MagicMock
+
+        provider = OpenAIProvider(api_key="fake", enable_text_repair=False)
+        client = MagicMock()
+        client.chat.completions.parse.side_effect = ValueError("local validation issue")
+        provider._client = client
+
+        with pytest.raises(ValueError, match="local validation issue"):
+            provider.query(
+                agent_description="x",
+                instruction="y",
+                model="m",
+                response_format=_FallbackOutput,
+            )
+
+
+class TestOpenRouterFallback:
+    """Live tests exercising the fallback chain against a real OpenRouter slug."""
+
+    @flaky
+    @pytest.mark.skipif(not os.getenv("OPENROUTER_API_KEY"), reason="OPENROUTER_API_KEY not available")
+    @pytest.mark.real_llm_query()
+    def test_openrouter_query_real_with_fallback(self):
+        """Pick a slug whose upstream model commonly fails ``.parse()`` to exercise the new ``extra_body`` tier."""
+        provider = OpenRouterProvider()
+        # anthropic-via-OpenRouter consistently triggered .parse() failure during PR #71 development;
+        # haiku is the cheapest known-to-need-fallback option.
+        # If model behavior on OpenRouter ever drifts and this slug succeeds via .parse(), the
+        # underlying chain still returns a valid response so the assertion holds — mark xfail
+        # only if a different failure mode emerges.
+        response = provider.query(
+            agent_description="You are a helpful assistant.",
+            instruction="Say hello in exactly one word.",
+            model="anthropic/claude-haiku-4-5",
+            response_format=SimpleOutput,
+            max_completion_tokens=50,
+        )
+
+        assert isinstance(response, SimpleOutput)
+        assert hasattr(response, "text")
+        assert len(response.text.strip()) > 0

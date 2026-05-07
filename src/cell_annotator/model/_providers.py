@@ -74,7 +74,7 @@ class LLMProvider(ABC):
 class OpenAIProvider(LLMProvider):
     """OpenAI provider implementation."""
 
-    def __init__(self, api_key: str | None = None) -> None:
+    def __init__(self, api_key: str | None = None, enable_text_repair: bool = False) -> None:
         """
         Initialize OpenAI provider with dependency check.
 
@@ -82,12 +82,19 @@ class OpenAIProvider(LLMProvider):
         ----------
         api_key
             Optional API key. If None, uses environment variable.
+        enable_text_repair
+            If True, the JSON fallback may ask the model to rewrite its own
+            free-form output into schema-valid JSON as a last resort. Off by
+            default to preserve the structured-outputs invariant; subclasses
+            targeting routers with weak structured-output support (e.g.
+            OpenRouter) may opt in.
         """
         check_deps("openai")
         self._client = None
         self._api_key = api_key
         self._base_url = None
         self._default_headers = None
+        self._enable_text_repair = enable_text_repair
 
     @property
     def client(self):
@@ -189,7 +196,7 @@ class OpenAIProvider(LLMProvider):
             logger.warning(failure_reason)
             return response_format.default_failure(failure_reason=failure_reason)
         except openai.OpenAIError as e:
-            logger.debug(
+            logger.warning(
                 "Structured parse failed for model '%s'. Falling back to JSON-mode query. Error: %s", model, str(e)
             )
             return self._query_with_json_fallback(
@@ -199,8 +206,10 @@ class OpenAIProvider(LLMProvider):
                 max_completion_tokens=max_completion_tokens,
                 fallback_error=str(e),
             )
-        except Exception as e:  # noqa: BLE001
-            logger.debug(
+        except (ValueError, TypeError) as e:
+            if not self._enable_text_repair:
+                raise
+            logger.warning(
                 "Non-OpenAI parse failure for model '%s'. Falling back to JSON-mode query. Error: %s", model, str(e)
             )
             return self._query_with_json_fallback(
@@ -232,9 +241,41 @@ class OpenAIProvider(LLMProvider):
         """
         Fallback for providers/models that do not support `.parse(...)`.
 
-        Requests plain JSON output and validates it with the Pydantic response model.
+        Tries successive structured-output strategies, from strongest signal
+        (json_schema via ``extra_body``) to weakest (free-form text repaired
+        into JSON, gated on ``self._enable_text_repair``).
         """
         schema = response_format.model_json_schema()
+
+        # Tier 1: json_schema via extra_body. Canonical OpenRouter structured-output
+        # path (per OpenRouter docs and LiteLLM); a strong "this must be JSON
+        # matching the schema" signal that many upstream models honour even when
+        # the SDK's `.parse()` helper does not work end-to-end.
+        try:
+            tier1_kwargs: dict = {
+                "model": model,
+                "messages": messages,  # type: ignore[arg-type]
+                "extra_body": {
+                    "response_format": {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": response_format.__name__,
+                            "strict": True,
+                            "schema": schema,
+                        },
+                    }
+                },
+            }
+            if max_completion_tokens is not None:
+                tier1_kwargs["max_tokens"] = max_completion_tokens
+            completion = self.client.chat.completions.create(**tier1_kwargs)
+            text = self._coerce_text_content(completion.choices[0].message.content)
+            if text:
+                return response_format.model_validate_json(text)
+        except Exception:  # noqa: BLE001
+            pass
+
+        # Tier 2: plain json_object mode with the schema interpolated into the prompt.
         schema_json = json.dumps(schema, ensure_ascii=True)
         fallback_instruction = (
             "Return only valid JSON that matches this schema exactly. "
@@ -242,18 +283,17 @@ class OpenAIProvider(LLMProvider):
             f"JSON schema: {schema_json}"
         )
         fallback_messages = [*messages, {"role": "user", "content": fallback_instruction}]
-
-        request_kwargs: dict = {
+        tier2_kwargs: dict = {
             "model": model,
             "messages": fallback_messages,  # type: ignore[arg-type]
             "response_format": {"type": "json_object"},
         }
         if max_completion_tokens is not None:
             # `max_tokens` is the most widely supported field across OpenAI-compatible APIs.
-            request_kwargs["max_tokens"] = max_completion_tokens
+            tier2_kwargs["max_tokens"] = max_completion_tokens
 
         try:
-            completion = self.client.chat.completions.create(**request_kwargs)
+            completion = self.client.chat.completions.create(**tier2_kwargs)
             raw_content = completion.choices[0].message.content
             text = self._coerce_text_content(raw_content)
             if not text:
@@ -263,32 +303,43 @@ class OpenAIProvider(LLMProvider):
                     )
                 )
 
-            # First, try strict JSON parsing directly.
+            # Strict JSON parsing first.
             try:
                 return response_format.model_validate_json(text)
             except Exception:  # noqa: BLE001
                 pass
 
-            # Then try extracting a JSON object from surrounding text.
+            # TODO: _extract_json_candidate uses find("{") / rfind("}"), which is
+            # brittle when the model emits prose with embedded braces or multiple
+            # JSON blocks. Revisit if this becomes a real failure mode.
             json_candidate = self._extract_json_candidate(text)
             if json_candidate is not None:
-                parsed = json.loads(json_candidate)
-                return response_format(**parsed)
-
-            # Last attempt: ask the same model to repair plain text into valid JSON.
-            repaired_text = self._repair_text_to_json(
-                model=model,
-                raw_text=text,
-                schema_json=schema_json,
-                max_completion_tokens=max_completion_tokens,
-            )
-            if repaired_text:
                 try:
-                    return response_format.model_validate_json(repaired_text)
+                    return response_format.model_validate_json(json_candidate)
                 except Exception:  # noqa: BLE001
-                    repaired_candidate = self._extract_json_candidate(repaired_text)
-                    if repaired_candidate is not None:
-                        return response_format(**json.loads(repaired_candidate))
+                    pass
+
+            # Tier 3: ask the model to repair its own output. Off by default
+            # (project invariant: never parse free-form LLM text in production paths);
+            # opted into by OpenRouterProvider where upstream-model variability
+            # justifies a last-resort recovery.
+            if self._enable_text_repair:
+                repaired_text = self._repair_text_to_json(
+                    model=model,
+                    raw_text=text,
+                    schema_json=schema_json,
+                    max_completion_tokens=max_completion_tokens,
+                )
+                if repaired_text:
+                    try:
+                        return response_format.model_validate_json(repaired_text)
+                    except Exception:  # noqa: BLE001
+                        repaired_candidate = self._extract_json_candidate(repaired_text)
+                        if repaired_candidate is not None:
+                            try:
+                                return response_format.model_validate_json(repaired_candidate)
+                            except Exception:  # noqa: BLE001
+                                pass
 
             return response_format.default_failure(
                 failure_reason=(
@@ -337,6 +388,11 @@ class OpenAIProvider(LLMProvider):
         max_completion_tokens: int | None,
     ) -> str:
         """Ask the model to convert plain text into schema-valid JSON."""
+        logger.warning(
+            "Last-resort text-to-JSON repair engaged for model '%s'. "
+            "This bypasses the structured-output contract; verify the response.",
+            model,
+        )
         repair_instruction = (
             "Convert the following assistant output into valid JSON matching this schema exactly. "
             "Return JSON only, with no markdown or explanation.\n"
@@ -367,7 +423,7 @@ class OpenRouterProvider(OpenAIProvider):
         if api_key is None:
             load_dotenv()
             api_key = os.getenv("OPENROUTER_API_KEY")
-        super().__init__(api_key=api_key)
+        super().__init__(api_key=api_key, enable_text_repair=True)
         self._base_url = "https://openrouter.ai/api/v1"
 
         # Optional headers recommended by OpenRouter for request attribution.
