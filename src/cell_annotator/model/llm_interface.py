@@ -42,9 +42,11 @@ class LLMInterface(APIKeyMixin):
 
         # Determine provider and model
         if provider is None and model is None:
-            # Auto-select the first available provider and its default model
-            if api_key is None:
-                # Only check environment keys if no manual key provided
+            # Auto-select the first available provider and its default model.
+            # When ``_skip_validation`` is set or a manual API key is supplied,
+            # we must not raise on missing env keys — fork-PR CI runs and
+            # ``LLMInterface(_skip_validation=True)`` callers both rely on this.
+            if api_key is None and not _skip_validation:
                 available_providers = self.api_keys.get_available_providers()
                 if not available_providers:
                     raise ValueError(
@@ -53,7 +55,6 @@ class LLMInterface(APIKeyMixin):
                     )
                 provider = available_providers[0]
             else:
-                # If manual API key provided but no provider specified, default to OpenAI
                 provider = "openai"
             model = PackageConstants.default_models[provider]
         elif provider is None and model is not None:
