@@ -156,8 +156,11 @@ class LLMInterface(APIKeyMixin):
         """
         Test if the LLM setup is working correctly.
 
-        Performs a simple query to verify that the API key is valid
-        and the model can be accessed successfully.
+        Performs a simple structured-output query against the configured model.
+        For OpenRouter slugs whose upstream model does not implement OpenAI's
+        ``.parse()`` endpoint, the provider's fallback chain
+        (``extra_body`` json_schema → plain ``json_object`` → optional text-repair)
+        carries the request, so the same code path works for every provider.
 
         Parameters
         ----------
@@ -170,30 +173,6 @@ class LLMInterface(APIKeyMixin):
         If return_details=False: True if the test query succeeds, False otherwise.
         If return_details=True: Tuple of (success, message) with detailed status.
         """
-        # OpenRouter aggregates many upstream models with varying structured-output
-        # behavior. For OpenRouter, treat "model is available in account catalog"
-        # as a valid readiness signal.
-        if self._provider_name == "openrouter":
-            try:
-                available_models = self.list_available_models()
-                if self.model in available_models:
-                    if return_details:
-                        return (
-                            True,
-                            (
-                                f"✅ OpenRouter model '{self.model}' is available for this account. "
-                                "Proceeding in compatibility mode."
-                            ),
-                        )
-                    return True
-                if return_details:
-                    return False, f"❌ OpenRouter model '{self.model}' is not available for this account"
-                return False
-            except Exception as e:  # noqa: BLE001
-                if return_details:
-                    return False, f"❌ Could not verify OpenRouter model availability: {str(e)}"
-                return False
-
         try:
             # Use a simple test response format with default values
 
