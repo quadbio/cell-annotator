@@ -21,7 +21,7 @@ class TestAPIKeyManager:
     def test_supported_providers(self):
         """Test that all expected providers are supported."""
         manager = APIKeyManager()
-        expected_providers = {"openai", "gemini", "anthropic"}
+        expected_providers = {"openai", "gemini", "anthropic", "openrouter"}
         assert set(manager.PROVIDER_CONFIG.keys()) == expected_providers
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test_openai_key"}, clear=False)
@@ -45,6 +45,13 @@ class TestAPIKeyManager:
         availability = manager.check_key_availability()
         assert availability["anthropic"] is True
 
+    @patch.dict(os.environ, {"OPENROUTER_API_KEY": "test_openrouter_key"}, clear=False)
+    def test_openrouter_key_detection(self):
+        """Test OpenRouter key detection from environment."""
+        manager = APIKeyManager()
+        availability = manager.check_key_availability()
+        assert availability["openrouter"] is True
+
     @patch.dict(os.environ, {}, clear=True)
     @patch("cell_annotator.model._api_keys.load_dotenv")
     def test_no_keys_available(self, _mock_load_dotenv):
@@ -54,6 +61,7 @@ class TestAPIKeyManager:
         assert availability["openai"] is False
         assert availability["gemini"] is False
         assert availability["anthropic"] is False
+        assert availability["openrouter"] is False
         assert manager.get_available_providers() == []
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "test_openai", "ANTHROPIC_API_KEY": "test_anthropic"}, clear=True)
@@ -69,7 +77,12 @@ class TestAPIKeyManager:
 
     @patch.dict(
         os.environ,
-        {"OPENAI_API_KEY": "test_openai", "GEMINI_API_KEY": "test_gemini", "ANTHROPIC_API_KEY": "test_anthropic"},
+        {
+            "OPENAI_API_KEY": "test_openai",
+            "GEMINI_API_KEY": "test_gemini",
+            "ANTHROPIC_API_KEY": "test_anthropic",
+            "OPENROUTER_API_KEY": "test_openrouter",
+        },
         clear=True,
     )
     @patch("cell_annotator.model._api_keys.load_dotenv")
@@ -77,7 +90,7 @@ class TestAPIKeyManager:
         """Test behavior when all API keys are available."""
         manager = APIKeyManager()
         available = manager.get_available_providers()
-        expected = {"openai", "gemini", "anthropic"}
+        expected = {"openai", "gemini", "anthropic", "openrouter"}
         assert set(available) == expected
 
     def test_validate_provider(self):
@@ -154,7 +167,7 @@ class TestAPIKeyMixin:
         mixin = APIKeyMixin()
 
         # Test with valid providers
-        for provider in ["openai", "gemini", "anthropic"]:
+        for provider in ["openai", "gemini", "anthropic", "openrouter"]:
             result = mixin.check_api_access(provider)
             assert isinstance(result, bool)
 

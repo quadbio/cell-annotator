@@ -19,9 +19,10 @@ class PackageConstants:
         "openai": "gpt-4o-mini",
         "gemini": "gemini-2.5-flash-lite",
         "anthropic": "claude-haiku-4-5",
+        "openrouter": "openai/gpt-4o-mini",
     }
     # Supported LLM providers
-    supported_providers: list[str] = ["openai", "gemini", "anthropic"]
+    supported_providers: list[str] = ["openai", "gemini", "anthropic", "openrouter"]
     default_cluster_key: str = "leiden"
     cell_type_key: str = "cell_type_harmonized"
 

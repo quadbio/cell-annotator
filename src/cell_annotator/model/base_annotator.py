@@ -88,7 +88,11 @@ class BaseAnnotator(LLMInterface):
 
     @d.dedent
     def query_llm(
-        self, instruction: str, response_format: type[BaseOutput], other_messages: list | None = None
+        self,
+        instruction: str,
+        response_format: type[BaseOutput],
+        agent_description: str | None = None,
+        other_messages: list | None = None,
     ) -> BaseOutput:
         """
         Query the LLM with a given instruction.
@@ -97,11 +101,15 @@ class BaseAnnotator(LLMInterface):
         ----------
         %(instruction)s
         %(response_format)s
+        agent_description
+            Optional system prompt override. If None, uses the default
+            cell-annotation prompt from `self.prompts`.
         %(other_messages)s
 
         %(returns_parsed_response)s
         """
-        agent_description = self.prompts.get_cell_type_prompt()
+        if agent_description is None:
+            agent_description = self.prompts.get_cell_type_prompt()
 
         response = self._provider.query(
             agent_description=agent_description,

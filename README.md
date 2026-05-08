@@ -17,12 +17,12 @@
 [badge-zenodo]: https://zenodo.org/badge/899554552.svg
 
 
-🧬 CellAnnotator is an [scverse ecosystem package](https://scverse.org/packages/#ecosystem), designed to annotate cell types in scRNA-seq data based on marker genes using large language models (LLMs). It supports OpenAI, Google Gemini, and Anthropic Claude models out of the box, with more providers planned for the future.
+🧬 CellAnnotator is an [scverse ecosystem package](https://scverse.org/packages/#ecosystem), designed to annotate cell types in scRNA-seq data based on marker genes using large language models (LLMs). It supports OpenAI, Google Gemini, Anthropic Claude, and OpenRouter models out of the box.
 
 
 ## ✨ Key Features
 
-- 🤖 **LLM-agnostic backend**: Seamlessly use models from OpenAI, Anthropic (Claude), and Gemini (Google) — just set your provider and API key.
+- 🤖 **LLM-agnostic backend**: Seamlessly use models from OpenAI, Anthropic (Claude), Gemini (Google), or OpenRouter — just set your provider and API key.
 - 🧬 **Automatically annotate cells** including type, state, and confidence fields.
 - 🔄 **Consistent annotations** across all samples in your study.
 - 🧠 **Infuse prior knowledge** by providing information about your biological system.
@@ -60,6 +60,7 @@ After installation, head over to the LLM provider of your choice to generate an 
 - OpenAI: [API key](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key)
 - Google (Gemini): [API key](https://ai.google.dev/gemini-api/docs/api-key)
 - Anthropic (Claude): [API key](https://docs.anthropic.com/en/docs/get-started)
+- OpenRouter: [API key](https://openrouter.ai/settings/keys)
 
 
 🔒 Keep this key private and don't share it with anyone. `CellAnnotator` will try to read the key as an environmental variable - either expose it to the environment yourself, or store it as an `.env` file anywhere within the repository where you conduct your analysis and plan to run `CellAnnotator`. The package will then use [dotenv](https://pypi.org/project/python-dotenv/) to export the key from the `env` file as an environmental variable.
@@ -78,6 +79,31 @@ cell_ann = CellAnnotator(
 
 By default, this will store annotations in `adata.obs['cell_type_predicted']`. Head over to our 📚 [tutorials](https://cell-annotator.readthedocs.io/en/latest/notebooks/tutorials/index.html) to see more advanced use cases, and learn how to adapt this to your own data. You can run `CellAnnotator` for just a single sample of data, or across multiple samples. In the latter case, it will attempt to harmonize annotations across samples.
 
+### Advanced provider options
+
+`CellAnnotator` can also be used in single-sample mode by setting `sample_key=None`.
+
+Example:
+
+```python
+from cell_annotator import CellAnnotator
+
+cell_ann = CellAnnotator(
+    adata=adata,
+    species="human",
+    tissue="pancreas",
+    cluster_key="leiden_1",
+    sample_key=None,  # single-sample mode
+    provider="openrouter",
+    model="openai/gpt-4o-mini",
+    api_key="YOUR_OPENROUTER_API_KEY",
+)
+
+cell_ann.get_expected_cell_type_markers(n_markers=3)
+cell_ann.get_cluster_markers()
+cell_ann.annotate_clusters(key_added="cell_type_predicted")
+```
+
 
 
 ## 💸 Costs and models
@@ -89,14 +115,18 @@ CellAnnotator is LLM-agnostic and works with multiple providers:
 
 - **Anthropic Claude:** Claude models are supported. See the [Anthropic pricing page](https://docs.anthropic.com/claude/docs/pricing) for details.
 
+- **OpenRouter:** OpenRouter routes requests to many model families (including OpenAI, Anthropic, and others) behind a single API key. Use `provider="openrouter"` and pass a model slug such as `openai/gpt-4o-mini` or `anthropic/claude-3.5-sonnet`.
+
 You can select your provider and model by setting the appropriate parameters. More providers may be supported in the future as the LLM ecosystem evolves.
 
 
 
 ## 🔐 Data privacy
-This package sends cluster marker genes, and the `species` and `tissue` you define, to the selected LLM provider (e.g., OpenAI, Google, or Anthropic). **No actual gene expression values are sent.**
+This package sends cluster marker genes, and the `species` and `tissue` you define, to the selected LLM provider (e.g., OpenAI, Google, Anthropic, or OpenRouter routes). **No actual gene expression values are sent.**
 
 Please ensure your usage of this package aligns with your institution's guidelines on data privacy and the use of external AI models. Each provider has its own privacy policy and terms of service. Review these carefully before using CellAnnotator with sensitive or regulated data.
+
+When using OpenRouter, requests are forwarded to the upstream provider implied by your model slug (e.g. `openai/...`, `anthropic/...`). Review both [OpenRouter's privacy policy](https://openrouter.ai/privacy) and the upstream provider's. Some OpenRouter model tiers may log prompts by default; users who need privacy guarantees should configure this via their OpenRouter account settings.
 
 
 ## 🙏 Credits

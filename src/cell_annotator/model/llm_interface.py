@@ -4,7 +4,7 @@ from cell_annotator._constants import PackageConstants
 from cell_annotator._docs import d
 from cell_annotator._logging import logger
 from cell_annotator._response_formats import BaseOutput
-from cell_annotator.model._api_keys import APIKeyMixin
+from cell_annotator.model._api_keys import APIKeyMixin, detect_provider_from_model
 from cell_annotator.model._providers import get_provider
 
 
@@ -42,9 +42,11 @@ class LLMInterface(APIKeyMixin):
 
         # Determine provider and model
         if provider is None and model is None:
-            # Auto-select the first available provider and its default model
-            if api_key is None:
-                # Only check environment keys if no manual key provided
+            # Auto-select the first available provider and its default model.
+            # When ``_skip_validation`` is set or a manual API key is supplied,
+            # we must not raise on missing env keys — fork-PR CI runs and
+            # ``LLMInterface(_skip_validation=True)`` callers both rely on this.
+            if api_key is None and not _skip_validation:
                 available_providers = self.api_keys.get_available_providers()
                 if not available_providers:
                     raise ValueError(
@@ -53,7 +55,6 @@ class LLMInterface(APIKeyMixin):
                     )
                 provider = available_providers[0]
             else:
-                # If manual API key provided but no provider specified, default to OpenAI
                 provider = "openai"
             model = PackageConstants.default_models[provider]
         elif provider is None and model is not None:
@@ -107,27 +108,8 @@ class LLMInterface(APIKeyMixin):
         return "\n".join(lines)
 
     def _detect_provider_from_model(self, model: str) -> str:
-        """
-        Auto-detect provider from model name.
-
-        Parameters
-        ----------
-        model
-            Model name.
-
-        Returns
-        -------
-        Provider name.
-        """
-        if any(keyword in model.lower() for keyword in ["gpt", "o1"]):
-            return "openai"
-        elif any(keyword in model.lower() for keyword in ["gemini", "bison"]):
-            return "gemini"
-        elif any(keyword in model.lower() for keyword in ["claude", "sonnet", "haiku", "opus"]):
-            return "anthropic"
-        else:
-            # Default to OpenAI for unknown models
-            return "openai"
+        """Auto-detect provider from model name. Thin wrapper around the shared helper."""
+        return detect_provider_from_model(model)
 
     @d.dedent
     def query_llm(
@@ -174,8 +156,11 @@ class LLMInterface(APIKeyMixin):
         """
         Test if the LLM setup is working correctly.
 
-        Performs a simple query to verify that the API key is valid
-        and the model can be accessed successfully.
+        Performs a simple structured-output query against the configured model.
+        For OpenRouter slugs whose upstream model does not implement OpenAI's
+        ``.parse()`` endpoint, the provider's fallback chain
+        (``extra_body`` json_schema → plain ``json_object`` → optional text-repair)
+        carries the request, so the same code path works for every provider.
 
         Parameters
         ----------
