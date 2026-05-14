@@ -10,8 +10,13 @@ class BaseOutput(BaseModel):
 
     @classmethod
     def default_failure(cls: type["BaseOutput"], failure_reason: str = "Manual fallback due to model failure."):
-        """Return a default output in case of failure, with a custom failure reason."""
-        return cls(reason_for_failure=failure_reason)
+        """Return a default output in case of failure, with a custom failure reason.
+
+        Uses ``model_construct`` so it cannot mask the upstream error with a
+        Pydantic ``ValidationError`` if a subclass declares a required field
+        without a default. Defaulted fields are still populated.
+        """
+        return cls.model_construct(reason_for_failure=failure_reason)
 
 
 class CellTypeColor(BaseOutput):
