@@ -60,6 +60,8 @@ jobs:
 
     name: ${{ matrix.env.label }}
     runs-on: ${{ matrix.os }}
+    # Allow pre-release tests to fail without blocking the PR (dependency compatibility issues)
+    continue-on-error: ${{ contains(matrix.env.name, 'pre') }}
 
     env:
       OS: ${{ matrix.os }}
