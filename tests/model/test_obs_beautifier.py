@@ -69,9 +69,14 @@ class TestObsBeautifier:
         adata = cell_annotator.adata
 
         # Set up initial annotations with a NaN value
-        adata.obs["leiden"] = adata.obs["leiden"].map({"0": "B cells", "1": "T cells"}).astype("category")
-        # Add a NaN value
-        adata.obs.loc[adata.obs.index[0], "leiden"] = np.nan
+        leiden = adata.obs["leiden"].map({"0": "B cells", "1": "T cells"}).astype("category")
+        # Inject a NaN via a writable copy + full-column reassignment rather than an in-place
+        # `.loc` write. anndata subsetting (here sc.pp.filter_cells in the fixture) leaves obs
+        # backing arrays read-only, and pandas >=3 refuses in-place mutation of them
+        # ("ValueError: assignment destination is read-only"). Reassigning the column avoids it.
+        leiden = leiden.copy()
+        leiden.iloc[0] = np.nan
+        adata.obs["leiden"] = leiden
 
         nan_count_before = adata.obs["leiden"].isna().sum()
         assert nan_count_before > 0
