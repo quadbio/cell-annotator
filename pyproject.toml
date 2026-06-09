@@ -28,7 +28,7 @@ dependencies = [
   "pydantic>=2",
   "python-dotenv",
   "rich",
-  "scanpy>=1.11",
+  "scanpy>=1.11.5",
   # for debug logging (referenced from the issue template)
   "session-info2",
 ]
@@ -39,21 +39,21 @@ optional-dependencies.all-providers = [
   "cell-annotator[openai]",
 ]
 optional-dependencies.anthropic = [
-  "anthropic>=0.59",
+  "anthropic>=0.75",
 ]
 # Other optional functionality
 optional-dependencies.colors = [
-  "colorspacious>=1.1",
+  "colorspacious>=1.1.2",
 ]
 optional-dependencies.gemini = [
-  "google-genai>=1.27",
+  "google-genai>=1.57",
 ]
 optional-dependencies.gpu = [
-  "rapids-singlecell>=0.12",
+  "rapids-singlecell>=0.13",
 ]
 # Core provider dependencies - one of these is required to use the package
 optional-dependencies.openai = [
-  "openai>=1.90",
+  "openai>=2",
 ]
 # Thin pointer so `pip install cell-annotator[test]` pulls in the provider extras
 # that the test suite exercises. Python test dependencies live in
@@ -63,7 +63,7 @@ optional-dependencies.test = [
   "cell-annotator[colors]",
 ]
 optional-dependencies.tutorials = [
-  "squidpy>=1.6",
+  "squidpy>=1.7",
 ]
 # https://docs.pypi.org/project_metadata/#project-urls
 urls.Documentation = "https://cell-annotator.readthedocs.io/"
@@ -85,6 +85,7 @@ doc = [
   "docutils>=0.8,!=0.18.*,!=0.19.*",
   "ipykernel",
   "ipython",
+  "ipywidgets",                      # for tqdm/notebook progress bars in Jupyter
   "myst-nb>=1.1",
   "pandas",
   # Until pybtex >0.24.0 releases: https://bitbucket.org/pybtex-devs/pybtex/issues/169/
