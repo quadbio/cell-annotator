@@ -174,11 +174,11 @@ ini_options.markers = [
 ini_options.xfail_strict = true
 
 [tool.coverage]
+run.source = [ "cell_annotator" ]
 run.omit = [
   "**/test_*.py",
 ]
 run.patch = [ "subprocess" ]
-run.source = [ "cell_annotator" ]
 
 [tool.cruft]
 skip = [
