@@ -18,7 +18,7 @@ Use `AGENTS.md` for architecture, invariants, and commands. Use this guide for r
 
 ## High-Risk Areas
 
-- **Data privacy boundary.** Any change that broadens what is sent to an LLM provider beyond marker gene *names* + `species` / `tissue` / `stage` is a hard red flag. Audit new prompt construction code in `_prompts.py` and anything that builds payloads in `base_annotator.py` / `llm_interface.py`.
+- **Data privacy boundary.** Any change that broadens what is sent to an LLM provider beyond marker gene _names_ + `species` / `tissue` / `stage` is a hard red flag. Audit new prompt construction code in `_prompts.py` and anything that builds payloads in `base_annotator.py` / `llm_interface.py`.
 - **Prompt template wording** (`src/cell_annotator/_prompts.py`): silent wording changes measurably shift annotation outputs. Treat these like behavior changes; they warrant a GitHub-release note.
 - **Pydantic response schemas** (`src/cell_annotator/_response_formats.py`): renaming, removing, or retyping fields breaks parsing of structured LLM outputs and is a serialized-contract change.
 - **Provider SDK integration** (`src/cell_annotator/model/_providers.py`, `llm_interface.py`, `base_annotator.py`): auth, retry, structured-output parsing, and error surfacing differ per provider; regressions are easy to miss with only one provider mocked.
@@ -32,13 +32,13 @@ Use `AGENTS.md` for architecture, invariants, and commands. Use this guide for r
 
 Test directories mirror `src/cell_annotator/` — changes to `src/cell_annotator/X/` have matching tests under `tests/`.
 
-| Changed path | Look at |
-|---|---|
-| `src/cell_annotator/model/` | `tests/model/` (per-class files: `test_cell_annotator.py`, `test_sample_annotator.py`, `test_base_annotator.py`, `test_llm_interface.py`, `test_obs_beautifier.py`) |
-| `src/cell_annotator/utils.py` | `tests/test_utils.py` |
-| `src/cell_annotator/check.py` | `tests/test_check.py` |
-| `src/cell_annotator/_response_formats.py` or `_prompts.py` | downstream: `tests/model/test_base_annotator.py`, `tests/model/test_llm_interface.py` |
-| Cross-cutting fixture changes | `tests/conftest.py`, `tests/utils.py` |
+| Changed path                                               | Look at                                                                                                                                                             |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/cell_annotator/model/`                                | `tests/model/` (per-class files: `test_cell_annotator.py`, `test_sample_annotator.py`, `test_base_annotator.py`, `test_llm_interface.py`, `test_obs_beautifier.py`) |
+| `src/cell_annotator/utils.py`                              | `tests/test_utils.py`                                                                                                                                               |
+| `src/cell_annotator/check.py`                              | `tests/test_check.py`                                                                                                                                               |
+| `src/cell_annotator/_response_formats.py` or `_prompts.py` | downstream: `tests/model/test_base_annotator.py`, `tests/model/test_llm_interface.py`                                                                               |
+| Cross-cutting fixture changes                              | `tests/conftest.py`, `tests/utils.py`                                                                                                                               |
 
 ## Testing
 
@@ -59,7 +59,7 @@ Apply these checks whenever the PR touches code or tests.
 - Distinguish critical regressions (data-privacy, provider-contract, AnnData-key, structured-output) from trivial or flaky failures.
 - Surface critical failures back to the author and ask them to fix before merge.
 
-**Modified tests.** Scrutinize *how* existing tests were changed.
+**Modified tests.** Scrutinize _how_ existing tests were changed.
 - PRs that only relax thresholds, remove assertions, delete cases, or loosen `parametrize` matrices are a red flag — tests-working-around-tests defeats the purpose.
 - Require an explicit justification in the PR body for any weakened assertion; do not accept silently.
 

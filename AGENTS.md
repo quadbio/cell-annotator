@@ -16,18 +16,18 @@ Every fact should have one owner. This file owns invariants and the reference ta
 
 ## Where To Find What
 
-| Topic | Source of truth |
-|-------|----------------|
-| User-facing overview, installation, quickstart | `README.md` |
-| Contributor setup, environments, docs build, release workflow | `docs/contributing.md` |
-| Public API reference | `docs/api.md` and autosummary under `docs/generated/` |
-| Tutorials and example notebooks | `docs/notebooks/tutorials/` |
-| PR review workflow and risk areas | `REVIEW_GUIDE.md` |
-| Test fixtures (providers, example AnnData) | `tests/conftest.py`, `tests/utils.py` |
-| LLM prompt templates | `src/cell_annotator/_prompts.py` |
-| Structured LLM response schemas | `src/cell_annotator/_response_formats.py` |
-| Provider wiring (OpenAI / Anthropic / Gemini) | `src/cell_annotator/model/_providers.py`, `llm_interface.py`, `base_annotator.py` |
-| Release notes | GitHub Releases (<https://github.com/quadbio/cell-annotator/releases>) |
+| Topic                                                         | Source of truth                                                                   |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| User-facing overview, installation, quickstart                | `README.md`                                                                       |
+| Contributor setup, environments, docs build, release workflow | `docs/contributing.md`                                                            |
+| Public API reference                                          | `docs/api.md` and autosummary under `docs/generated/`                             |
+| Tutorials and example notebooks                               | `docs/notebooks/tutorials/`                                                       |
+| PR review workflow and risk areas                             | `REVIEW_GUIDE.md`                                                                 |
+| Test fixtures (providers, example AnnData)                    | `tests/conftest.py`, `tests/utils.py`                                             |
+| LLM prompt templates                                          | `src/cell_annotator/_prompts.py`                                                  |
+| Structured LLM response schemas                               | `src/cell_annotator/_response_formats.py`                                         |
+| Provider wiring (OpenAI / Anthropic / Gemini)                 | `src/cell_annotator/model/_providers.py`, `llm_interface.py`, `base_annotator.py` |
+| Release notes                                                 | GitHub Releases (<https://github.com/quadbio/cell-annotator/releases>)            |
 
 ## Review Guidelines
 
@@ -37,7 +37,7 @@ This file only owns the project invariants and source-of-truth map below.
 
 ## Critical Invariants
 
-- **Data privacy.** Only cluster marker gene *names*, plus `species`, `tissue`, and (optionally) `stage`, are sent to LLM providers. Raw expression values, cell-level data, and user metadata must never cross the provider boundary. Any PR that broadens what is sent is a hard red flag.
+- **Data privacy.** Only cluster marker gene _names_, plus `species`, `tissue`, and (optionally) `stage`, are sent to LLM providers. Raw expression values, cell-level data, and user metadata must never cross the provider boundary. Any PR that broadens what is sent is a hard red flag.
 - **Structured outputs only.** All LLM calls round-trip through Pydantic models in `_response_formats.py` (e.g. `CellTypeListOutput`, `ExpectedMarkerGeneOutput`, `CellTypeMappingOutput`). Never parse free-form LLM text in production paths; renaming or removing fields breaks user-visible contracts.
 - **Optional provider extras.** `openai`, `anthropic`, and `google-genai` are optional extras. Provider-specific imports must be guarded and must fail with a clear message when the extra is missing; they must not leak into import-time code paths of the top-level package.
 - **API keys stay in the environment.** Keys are loaded from env vars or a local `.env` via python-dotenv (`APIKeyManager`). They must never be logged, serialized, or included in error messages / exceptions.
