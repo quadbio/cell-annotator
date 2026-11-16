@@ -34,11 +34,13 @@
 
 
 ## 📦 Installation
+
 You need to have 🐍 Python 3.11 or newer installed on your system.
 If you don't have Python installed, we recommend installing [Mambaforge][].
 
 
 ### 🚀 PyPI
+
 Install by running:
 
 ```bash
@@ -47,6 +49,7 @@ pip install cell-annotator
 
 
 ### 🛠️ Development version
+
 To install the latest development version from [GitHub](https://github.com/quadbio/cell-annotator), run
 
 ```bash
@@ -55,6 +58,7 @@ pip install git+https://github.com/quadbio/cell-annotator.git@main
 
 
 ## 🏁 Getting started
+
 After installation, head over to the LLM provider of your choice to generate an API key 🔑. For example:
 
 - OpenAI: [API key](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key)
@@ -107,6 +111,7 @@ cell_ann.annotate_clusters(key_added="cell_type_predicted")
 
 
 ## 💸 Costs and models
+
 CellAnnotator is LLM-agnostic and works with multiple providers:
 
 - **OpenAI (GPT models):** The default model is currently `gpt-4o-mini`, which is included in [OpenAI's Free Usage Tier](https://platform.openai.com/docs/guides/rate-limits). You can get started for free and experiment with our 📚 [tutorials](https://cell-annotator.readthedocs.io/en/latest/notebooks/tutorials/index.html) and your own data. For more accurate cell type labels in complex tissues, we recommend more powerful models like `gpt-4o`, `gpt-4.1`, or reasoning models like `o3-mini` (these may incur a small fee; e.g., running both tutorials with `o3-mini` costs around 1 USD). See the [OpenAI API docs](https://platform.openai.com/docs/models) for details.
@@ -122,6 +127,7 @@ You can select your provider and model by setting the appropriate parameters. Mo
 
 
 ## 🔐 Data privacy
+
 This package sends cluster marker genes, and the `species` and `tissue` you define, to the selected LLM provider (e.g., OpenAI, Google, Anthropic, or OpenRouter routes). **No actual gene expression values are sent.**
 
 Please ensure your usage of this package aligns with your institution's guidelines on data privacy and the use of external AI models. Each provider has its own privacy policy and terms of service. Review these carefully before using CellAnnotator with sensitive or regulated data.
@@ -130,14 +136,17 @@ When using OpenRouter, requests are forwarded to the upstream provider implied b
 
 
 ## 🙏 Credits
+
 This tool was inspired by [Hou et al., Nature Methods 2024](https://www.nature.com/articles/s41592-024-02235-4) and [https://github.com/VPetukhov/GPTCellAnnotator](https://github.com/VPetukhov/GPTCellAnnotator).
 
 
 ## 📬 Contact
+
 If you found a bug, please use the [issue tracker][].
 
 
 ## 📖 Citation
+
 Please use our [zenodo][] entry to cite this software.
 
 [mambaforge]: https://github.com/conda-forge/miniforge#mambaforge
