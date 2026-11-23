@@ -18,7 +18,7 @@ Use `AGENTS.md` for architecture, invariants, and commands. Use this guide for r
 
 ## High-Risk Areas
 
-- **Data privacy boundary.** Any change that broadens what is sent to an LLM provider beyond marker gene *names* + `species` / `tissue` / `stage` is a hard red flag. Audit new prompt construction code in `_prompts.py` and anything that builds payloads in `base_annotator.py` / `llm_interface.py`.
+- **Data privacy boundary.** Any change that broadens what is sent to an LLM provider beyond marker gene _names_ + `species` / `tissue` / `stage` is a hard red flag. Audit new prompt construction code in `_prompts.py` and anything that builds payloads in `base_annotator.py` / `llm_interface.py`.
 - **Prompt template wording** (`src/cell_annotator/_prompts.py`): silent wording changes measurably shift annotation outputs. Treat these like behavior changes; they warrant a GitHub-release note.
 - **Pydantic response schemas** (`src/cell_annotator/_response_formats.py`): renaming, removing, or retyping fields breaks parsing of structured LLM outputs and is a serialized-contract change.
 - **Provider SDK integration** (`src/cell_annotator/model/_providers.py`, `llm_interface.py`, `base_annotator.py`): auth, retry, structured-output parsing, and error surfacing differ per provider; regressions are easy to miss with only one provider mocked.
@@ -32,34 +32,38 @@ Use `AGENTS.md` for architecture, invariants, and commands. Use this guide for r
 
 Test directories mirror `src/cell_annotator/` — changes to `src/cell_annotator/X/` have matching tests under `tests/`.
 
-| Changed path | Look at |
-|---|---|
-| `src/cell_annotator/model/` | `tests/model/` (per-class files: `test_cell_annotator.py`, `test_sample_annotator.py`, `test_base_annotator.py`, `test_llm_interface.py`, `test_obs_beautifier.py`) |
-| `src/cell_annotator/utils.py` | `tests/test_utils.py` |
-| `src/cell_annotator/check.py` | `tests/test_check.py` |
-| `src/cell_annotator/_response_formats.py` or `_prompts.py` | downstream: `tests/model/test_base_annotator.py`, `tests/model/test_llm_interface.py` |
-| Cross-cutting fixture changes | `tests/conftest.py`, `tests/utils.py` |
+| Changed path                                               | Look at                                                                                                                                                             |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/cell_annotator/model/`                                | `tests/model/` (per-class files: `test_cell_annotator.py`, `test_sample_annotator.py`, `test_base_annotator.py`, `test_llm_interface.py`, `test_obs_beautifier.py`) |
+| `src/cell_annotator/utils.py`                              | `tests/test_utils.py`                                                                                                                                               |
+| `src/cell_annotator/check.py`                              | `tests/test_check.py`                                                                                                                                               |
+| `src/cell_annotator/_response_formats.py` or `_prompts.py` | downstream: `tests/model/test_base_annotator.py`, `tests/model/test_llm_interface.py`                                                                               |
+| Cross-cutting fixture changes                              | `tests/conftest.py`, `tests/utils.py`                                                                                                                               |
 
 ## Testing
 
 Apply these checks whenever the PR touches code or tests.
 
 **New code.** Confirm that new behavior is covered by tests.
+
 - Reuse fixtures from `tests/conftest.py` and `tests/utils.py` rather than creating parallel ones.
 - Prefer `pytest.mark.parametrize` over many near-identical tests; the existing `provider_name` fixture already parametrizes across available providers.
 - Favor few meaningful tests over many redundant ones; flag low-value tests that only duplicate existing coverage.
 
 **Real-LLM tests.** Keep live-provider usage minimal.
+
 - Live tests must be marked `@pytest.mark.real_llm_query` and must be skipped by default in CI.
 - Prefer mocked provider fixtures for unit tests.
 - Anthropic is the most expensive provider — do not add Anthropic-only real-LLM tests without justification.
 
 **Failing tests.** If CI is red, do not wave it through.
+
 - Inspect which tests fail and why (`gh pr checks`, `gh run view --log-failed`).
 - Distinguish critical regressions (data-privacy, provider-contract, AnnData-key, structured-output) from trivial or flaky failures.
 - Surface critical failures back to the author and ask them to fix before merge.
 
-**Modified tests.** Scrutinize *how* existing tests were changed.
+**Modified tests.** Scrutinize _how_ existing tests were changed.
+
 - PRs that only relax thresholds, remove assertions, delete cases, or loosen `parametrize` matrices are a red flag — tests-working-around-tests defeats the purpose.
 - Require an explicit justification in the PR body for any weakened assertion; do not accept silently.
 
@@ -68,12 +72,14 @@ Apply these checks whenever the PR touches code or tests.
 A single behavioral or API change often touches docs in multiple places. Check both audiences and ask the author to update what is stale. Point to the **owning file** for each topic rather than duplicating content in your review.
 
 **Human-facing docs (`docs/`, Sphinx/RTD).**
+
 - Public API signature or symbol changes → `docs/api.md` and autosummary entries under `docs/generated/`; any prose referencing the symbol.
 - Contributor workflow, environment, or release changes → `docs/contributing.md`.
 - Installation / quickstart changes → `README.md`.
 - Tutorials under `docs/notebooks/tutorials/` → flag stale imports, outputs, or API usage (e.g. renamed kwargs, changed AnnData keys).
 
 **Agent-facing docs (repo root and `.github/`).**
+
 - Invariants or development commands changed → `AGENTS.md` (Critical Invariants, Development Commands).
 - Review workflow, risk areas, or testing conventions changed → `REVIEW_GUIDE.md` (this file).
 - Repo structure, new top-level docs, or moved pointers → `AGENTS.md` "Where To Find What" table, `CLAUDE.md`, `.github/copilot-instructions.md`.
@@ -98,6 +104,7 @@ If behavior changes but the relevant docs do not, call it out explicitly in the 
 This repo uses a structured PR template.
 
 Reviewers and agents should treat these sections as the preferred summary surface:
+
 - summary
 - behavior or invariants changed
 - tests run
